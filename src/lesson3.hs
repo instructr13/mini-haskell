@@ -65,7 +65,6 @@ postorder (Node l x r) = postorder l ++ postorder r ++ [x]
 
 nub :: (Eq a) => [a] -> [a]
 nub [] = []
-nub [x] = [x]
 nub (x : xs) = x : nub [xi | xi <- xs, xi /= x]
 
 -- >>> nub [1,2,3,3,3,2,4,1]
