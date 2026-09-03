@@ -264,13 +264,11 @@ delete _ Leaf = Leaf
 delete x (Node l y r)
   | x < y = Node (delete x l) y r
   | x > y = Node l y (delete x r)
-  | otherwise = delete' l r -- 左から最大値を取得し、それと置き換え; 左は最大値部分を削除する
+  | Leaf <- r = l
+  | Leaf <- l = r
+  | otherwise = Node (deleteMax l) x' r -- 左から最大値を取得し、それと置き換え; 左は最大値部分を削除する
   where
-    delete' l Leaf = l
-    delete' Leaf r = r
-    delete' l r = Node (deleteMax l) x' r
-      where
-        Just x' = searchMax l
+    Just x' = searchMax l
 
 -- >>> delete 4 t2
 -- Node (Node Leaf 1 Leaf) 2 (Node Leaf 3 (Node Leaf 5 Leaf))
