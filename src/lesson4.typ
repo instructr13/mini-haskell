@@ -199,7 +199,7 @@
         $
           fn("revapp", (x : xs prime), ys) & = fn("revapp", xs prime, (x : ys))                       && wide "by " S_2 \
                                            & = fn("revapp", xs prime, []) concat (x : ys)             && wide "I.H." \
-                                           & = fn("revapp", xs prime, []) concat (x : ([] ++ ys))     && wide "by " A_1 \
+                                           & = fn("revapp", xs prime, []) concat (x : ([] concat ys)) && wide "by " A_1 \
                                            & = fn("revapp", xs prime, []) concat ((x : []) concat ys) && wide "by " A_2 \
                                            & = fn("revapp", xs prime, []) concat ([x] concat ys) \
                                            & = (fn("revapp", xs prime, []) concat [x]) concat ys      && wide "by " #[@q:2] \
