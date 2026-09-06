@@ -1,0 +1,67 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.6.
+--
+-- see: https://github.com/sol/hpack
+
+name:           mini-haskell
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/instructr13/mini-haskell#readme>
+homepage:       https://github.com/instructr13/mini-haskell#readme
+bug-reports:    https://github.com/instructr13/mini-haskell/issues
+author:         Mido <mido@wycey.dev>
+maintainer:     Mido <mido@wycey.dev>
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/instructr13/mini-haskell
+
+library
+  exposed-modules:
+      TRS
+      TRSParser
+  other-modules:
+      Paths_mini_haskell
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , optparse-applicative
+    , parsec
+  default-language: Haskell2010
+
+executable mini-haskell-exe
+  main-is: Main.hs
+  other-modules:
+      Args
+      Paths_mini_haskell
+  hs-source-dirs:
+      app
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , mini-haskell
+    , optparse-applicative
+    , parsec
+  default-language: Haskell2010
+
+test-suite mini-haskell-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_mini_haskell
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , mini-haskell
+    , optparse-applicative
+    , parsec
+  default-language: Haskell2010
