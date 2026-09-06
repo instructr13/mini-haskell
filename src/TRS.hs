@@ -15,7 +15,7 @@ type TRS = [Rule]
 
 instance Show Term where
   show (V x) = x
-  show (F f ts) = f ++ "(" ++ intercalate "," [show t | t <- ts] ++ ")"
+  show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
 
 -- Pos(t)
 -- positions (F "add" []) = [[]]
