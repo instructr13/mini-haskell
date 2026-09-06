@@ -80,8 +80,8 @@ matchAsIs (F _ _) (V _) = Nothing -- Rule III
 -- Rule IV check (don't care about complexity)
 allValidMatch :: Subst -> Bool
 allValidMatch [] = True
-allValidMatch (x : xs)
-  | (xs1, xt1) <- x, Just xt2 <- lookup xs1 xs, xt1 /= xt2 = False
+allValidMatch ((xs1, xt1) : xs)
+  | Just xt2 <- lookup xs1 xs, xt1 /= xt2 = False
   | otherwise = allValidMatch xs
 
 -- match s t = Just sigma, if s sigma = t for some sigma
@@ -105,34 +105,32 @@ findTRSMatch (rule@(l, _) : trs) t
   where
     maybeSubst = match l t
 
-findFirstTRSMatch :: TRS -> [(Position, Term)] -> Maybe (Position, Rule, Subst)
-findFirstTRSMatch [] _ = Nothing
-findFirstTRSMatch _ [] = Nothing
-findFirstTRSMatch trs ((p, t) : ts)
-  | Just (rule, subst) <- maybeRule = Just (p, rule, subst)
-  | otherwise = findFirstTRSMatch trs ts
-  where
-    maybeRule = findTRSMatch trs t
-
 -- rewrite R t = Just u, if t ->_R u for some term u
 -- rewrite R t = Nothing, otherwise
--- 1. Get positions for t
--- 2. Get all subterms for t --> ss
--- 3. Pattern match for all first TRS with s (of ss) and l
--- 4. If found, find sigma for s and l (return Nothing if not found)
--- 5. replace t[l sigma]_p -> t[r sigma]_p and return with Just
+-- 1. Pattern match for the whole term with TRS
+-- 2. If the rule is found (let (l, r)), t[l sigma]_ε -> t[r sigma]_ε
+-- 3. If the whole term is F, pattern match for all arities
+-- 4. Pattern match for all first TRS with s (of ss) and l
 rewrite :: TRS -> Term -> Maybe Term
 rewrite trs t
-  | Just (p, (_, r), subst) <- maybeMatch = Just (replace t (substitute r subst) p)
+  | Just ((_, r), sigma) <- findTRSMatch trs t = Just (substitute r sigma)
+  | F f ts <- t = case rewriteList ts of
+      Just ts' -> Just (F f ts')
+      Nothing -> Nothing
   | otherwise = Nothing
   where
-    subTerms = [(p, subTermAt t p) | p <- positions t]
-    maybeMatch = findFirstTRSMatch trs subTerms
+    rewriteList [] = Nothing
+    rewriteList (u : us)
+      | Just u' <- maybeU = Just (u' : us)
+      | otherwise = case rewriteList us of
+          Just us' -> Just (u : us')
+          Nothing -> Nothing
+      where
+        maybeU = rewrite trs u
 
 -- nf R t = u if t ->_R ... ->_R u for some normal form u
 nf :: TRS -> Term -> Term
 nf trs t
-  | Just u' <- u, t == u' = t
   | Just u' <- u, otherwise = nf trs u'
   | Nothing <- u = t
   where
