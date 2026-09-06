@@ -70,10 +70,11 @@ substitute (F f ts) sigma = F f [substitute t sigma | t <- ts]
 matchAsIs :: Term -> Term -> Maybe Subst
 matchAsIs (V s) t = Just [(s, t)] -- Rule IV (w/o check)
 matchAsIs (F f1 ts1) (F f2 ts2)
-  | f1 == f2 = Just matches -- Rule I (assume f1 and f2 are THE SAME)
+  -- Rule I (assume f1 and f2 are THE SAME)
+  | Just matches <- maybeMatches, f1 == f2 && length ts1 == length ts2 = Just (concat matches)
   | otherwise = Nothing -- Rule II
   where
-    matches = concat [m | Just m <- [matchAsIs t1 t2 | (t1, t2) <- zip ts1 ts2]]
+    maybeMatches = sequence [matchAsIs t1 t2 | (t1, t2) <- zip ts1 ts2]
 matchAsIs (F _ _) (V _) = Nothing -- Rule III
 
 -- Rule IV check (don't care about complexity)
