@@ -1,5 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
-
 module Main (main) where
 
 import Args
@@ -11,8 +9,8 @@ main :: IO ()
 main = execParser argParserInfo >>= runMain
 
 runMain :: Argument -> IO ()
-runMain Argument {..} = do
-  result <- readTRSFile file
+runMain args = do
+  result <- readTRSFile (file args)
 
   case result of
     Left e -> error (show e)
