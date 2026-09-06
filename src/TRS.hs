@@ -59,7 +59,7 @@ variables :: Term -> [String]
 variables (V x) = [x]
 variables (F _ ts) = nub [x | t <- ts, x <- variables t]
 
--- substitute t sigma = sigma
+-- substitute t sigma = t sigma
 substitute :: Term -> Subst -> Term
 substitute (V x) sigma
   | Just t <- lookup x sigma = t
@@ -85,7 +85,7 @@ allValidMatch (x : xs)
 
 -- match s t = Just sigma, if s sigma = t for some sigma
 -- match s t = Nothing, otherwise
--- match (F "add" [V "x", (F "s" [V "y", V "z"])]) (F "add" [(F "s" [V "y"]), (F "s" [(F "add" [(F "add" [V "x", (F "0" [])]), V "z"])])])
+-- match (F "add" [V "x", (F "s" [(F "add" [V "y", V "z"])])]) (F "add" [(F "s" [V "y"]), (F "s" [(F "add" [(F "add" [V "x", (F "0" [])]), V "z"])])])
 --   = Just [("x", F "s" [V "y"]), ("y", F "add" [V "x", (F "0" [])]), ("z", V "z")]
 -- match (F "add" [(F "s" [V "x"]), (F "add" [V "x", V "y"])]) (F "add" [(F "s" [(F "add" [(F "0" []), V "x"])]), (F "add" [(F "add" [(F "0" []), (F "0" [])]), V "x"])])
 --   = Nothing
