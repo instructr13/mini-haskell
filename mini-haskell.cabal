@@ -23,6 +23,7 @@ source-repository head
 
 library
   exposed-modules:
+      List
       TRS
       TRSParser
   other-modules:

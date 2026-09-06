@@ -1,6 +1,6 @@
 module TRSParser (readTRSFile) where
 
-import Data.List
+import Data.List (nub)
 import TRS (Rule, Subst, TRS, Term (..))
 import Text.ParserCombinators.Parsec
 
