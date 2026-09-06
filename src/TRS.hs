@@ -96,6 +96,47 @@ match s t
   where
     matches = matchAsIs s t
 
+findTRSMatch :: TRS -> Term -> Maybe (Rule, Subst)
+findTRSMatch [] _ = Nothing
+findTRSMatch (rule@(l, _) : trs) t
+  | Just subst <- maybeSubst = Just (rule, subst)
+  | otherwise = findTRSMatch trs t
+  where
+    maybeSubst = match l t
+
+findFirstTRSMatch :: TRS -> [(Position, Term)] -> Maybe (Position, Rule, Subst)
+findFirstTRSMatch [] _ = Nothing
+findFirstTRSMatch _ [] = Nothing
+findFirstTRSMatch trs ((p, t) : ts)
+  | Just (rule, subst) <- maybeRule = Just (p, rule, subst)
+  | otherwise = findFirstTRSMatch trs ts
+  where
+    maybeRule = findTRSMatch trs t
+
+-- rewrite R t = Just u, if t ->_R u for some term u
+-- rewrite R t = Nothing, otherwise
+-- 1. Get positions for t
+-- 2. Get all subterms for t --> ss
+-- 3. Pattern match for all first TRS with s (of ss) and l
+-- 4. If found, find sigma for s and l (return Nothing if not found)
+-- 5. replace t[l sigma]_p -> t[r sigma]_p and return with Just
+rewrite :: TRS -> Term -> Maybe Term
+rewrite trs t
+  | Just (p, (_, r), subst) <- maybeMatch = Just (replace t (substitute r subst) p)
+  | otherwise = Nothing
+  where
+    subTerms = [(p, subTermAt t p) | p <- positions t]
+    maybeMatch = findFirstTRSMatch trs subTerms
+
+-- nf R t = u if t ->_R ... ->_R u for some normal form u
+nf :: TRS -> Term -> Term
+nf trs t
+  | Just u' <- u, t == u' = t
+  | Just u' <- u, otherwise = nf trs u'
+  | Nothing <- u = t
+  where
+    u = rewrite trs t
+
 showRule :: Rule -> String
 showRule (l, r) = show l ++ " -> " ++ show r
 
