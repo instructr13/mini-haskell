@@ -1,6 +1,6 @@
 module TRS (module TRS) where
 
-import Data.List (intercalate)
+import Data.List (intercalate, nub)
 import List
 
 data Term = V String | F String [Term] deriving (Eq)
@@ -54,6 +54,47 @@ replace v@(V _) _ _ = v
 replace (F f ts) u (p : ps) = F f (replaceAt p newT ts)
   where
     newT = replace (ts !! p) u ps
+
+variables :: Term -> [String]
+variables (V x) = [x]
+variables (F _ ts) = nub [x | t <- ts, x <- variables t]
+
+-- substitute t sigma = sigma
+substitute :: Term -> Subst -> Term
+substitute (V x) sigma
+  | Just t <- lookup x sigma = t
+  | otherwise = V x
+substitute (F f ts) sigma = F f [substitute t sigma | t <- ts]
+
+-- Pattern match without check
+matchAsIs :: Term -> Term -> Maybe Subst
+matchAsIs (V s) t = Just [(s, t)] -- Rule IV (w/o check)
+matchAsIs (F f1 ts1) (F f2 ts2)
+  | f1 == f2 = Just matches -- Rule I (assume f1 and f2 are THE SAME)
+  | otherwise = Nothing -- Rule II
+  where
+    matches = concat [m | Just m <- [matchAsIs t1 t2 | (t1, t2) <- zip ts1 ts2]]
+matchAsIs (F _ _) (V _) = Nothing -- Rule III
+
+-- Rule IV check (don't care about complexity)
+allValidMatch :: Subst -> Bool
+allValidMatch [] = True
+allValidMatch (x : xs)
+  | (xs1, xt1) <- x, Just xt2 <- lookup xs1 xs, xt1 /= xt2 = False
+  | otherwise = allValidMatch xs
+
+-- match s t = Just sigma, if s sigma = t for some sigma
+-- match s t = Nothing, otherwise
+-- match (F "add" [V "x", (F "s" [V "y", V "z"])]) (F "add" [(F "s" [V "y"]), (F "s" [(F "add" [(F "add" [V "x", (F "0" [])]), V "z"])])])
+--   = Just [("x", F "s" [V "y"]), ("y", F "add" [V "x", (F "0" [])]), ("z", V "z")]
+-- match (F "add" [(F "s" [V "x"]), (F "add" [V "x", V "y"])]) (F "add" [(F "s" [(F "add" [(F "0" []), V "x"])]), (F "add" [(F "add" [(F "0" []), (F "0" [])]), V "x"])])
+--   = Nothing
+match :: Term -> Term -> Maybe Subst
+match s t
+  | Just matches' <- matches, allValidMatch matches' = matches
+  | otherwise = Nothing
+  where
+    matches = matchAsIs s t
 
 showRule :: Rule -> String
 showRule (l, r) = show l ++ " -> " ++ show r

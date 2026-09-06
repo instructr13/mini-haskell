@@ -1,26 +1,16 @@
 module TRSParser (readTRSFile) where
 
 import Data.List (nub)
-import TRS (Rule, Subst, TRS, Term (..))
+import TRS (Rule, Subst, TRS, Term (..), substitute, variables)
 import Text.ParserCombinators.Parsec
-
-variables :: Term -> [String]
-variables (V x) = [x]
-variables (F _ ts) = nub [x | t <- ts, x <- TRSParser.variables t]
 
 variablesInTRS :: TRS -> [String]
 variablesInTRS trs =
-  nub [x | (l, r) <- trs, t <- [l, r], x <- TRSParser.variables t]
-
-substitute :: Term -> Subst -> Term
-substitute (V x) sigma
-  | Just t <- lookup x sigma = t
-  | otherwise = V x
-substitute (F f ts) sigma = F f [TRSParser.substitute t sigma | t <- ts]
+  nub [x | (l, r) <- trs, t <- [l, r], x <- variables t]
 
 substituteTRS :: TRS -> Subst -> TRS
 substituteTRS trs sigma =
-  [ (TRSParser.substitute l sigma, TRSParser.substitute r sigma)
+  [ (substitute l sigma, substitute r sigma)
   | (l, r) <- trs
   ]
 
