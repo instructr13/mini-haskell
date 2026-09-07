@@ -1,7 +1,6 @@
 module TRS (module TRS) where
 
 import Data.List (intercalate, nub)
-import List
 
 data Term = V String | F String [Term] deriving (Eq)
 
@@ -32,7 +31,7 @@ instance Show Term where
 positions :: Term -> [Position]
 positions (V _) = [[]] -- {ε}
 positions (F _ []) = [[]] -- {ε}
-positions (F f (t : ts)) = [[]] ++ [0 : p | p <- positions t] ++ [p + 1 : ps' | (p : ps') <- positions (F f ts)]
+positions (F _ ts) = [[]] ++ [i : j | i <- [0 .. length ts - 1], j <- positions (ts !! i)]
 
 -- subTermAt t p = t|_p
 -- subTermAt (F "add" [V "x", V "y"]) [] = F "add" [V "x", V "y"]
@@ -51,10 +50,11 @@ subTermAt (F _ ts) (p : ps) = subTermAt (ts !! p) ps
 replace :: Term -> Term -> Position -> Term
 replace _ u [] = u
 replace (V _) _ _ = error "replace: cannot use sub-position to a variable"
-replace (F f ts) u (p : ps) = F f (replaceAt p newT ts)
+replace (F f ts) u (p : ps) = F f [if p' == p then newT else t | (p', t) <- zip [0 .. length ts - 1] ts]
   where
     newT = replace (ts !! p) u ps
 
+-- Var(t)
 variables :: Term -> [String]
 variables (V x) = [x]
 variables (F _ ts) = nub [x | t <- ts, x <- variables t]

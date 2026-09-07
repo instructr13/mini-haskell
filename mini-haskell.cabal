@@ -23,7 +23,6 @@ source-repository head
 
 library
   exposed-modules:
-      List
       Test
       TRS
       TRSParser
