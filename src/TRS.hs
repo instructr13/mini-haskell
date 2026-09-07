@@ -32,7 +32,7 @@ instance Show Term where
 positions :: Term -> [Position]
 positions (V _) = [[]] -- {ε}
 positions (F _ []) = [[]] -- {ε}
-positions (F f (t : ts)) = [] : [0 : p | p <- positions t] ++ [p + 1 : ps' | (p : ps') <- positions (F f ts)]
+positions (F f (t : ts)) = [[]] ++ [0 : p | p <- positions t] ++ [p + 1 : ps' | (p : ps') <- positions (F f ts)]
 
 -- subTermAt t p = t|_p
 -- subTermAt (F "add" [V "x", V "y"]) [] = F "add" [V "x", V "y"]
