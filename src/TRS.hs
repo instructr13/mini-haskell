@@ -12,6 +12,8 @@ type Rule = (Term, Term)
 
 type TRS = [Rule]
 
+type Strategy = TRS -> Term -> Maybe Term
+
 instance Show Term where
   show (V x) = x
   show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
@@ -120,7 +122,7 @@ findTRSMatch (rule@(l, _) : trs) t
 -- 2. If the rule is found (let (l, r)), t[l sigma]_ε -> t[r sigma]_ε
 -- 3. If the whole term is F, pattern match for all arities
 -- 4. Pattern match for all first TRS with s (of ss) and l
-rewrite :: TRS -> Term -> Maybe Term
+rewrite :: Strategy
 rewrite trs t
   | Just ((_, r), sigma) <- findTRSMatch trs t = Just (substitute r sigma)
   | F f ts <- t = case rewriteList ts of
@@ -138,12 +140,23 @@ rewrite trs t
         maybeU = rewrite trs u
 
 -- nf R t = u if t ->_R ... ->_R u for some normal form u
-nf :: TRS -> Term -> Term
-nf trs t
-  | Just u' <- u, otherwise = nf trs u'
+nfWith :: Strategy -> TRS -> Term -> Term
+nfWith f trs t
+  | Just u' <- u = nfWith f trs u'
   | Nothing <- u = t
   where
+    u = f trs t
+
+nfWithLimit :: Int -> TRS -> Term -> Either Term Term
+nfWithLimit 0 _ t = Left t
+nfWithLimit limit trs t
+  | Just u' <- u = nfWithLimit (limit - 1) trs u'
+  | Nothing <- u = Right t
+  where
     u = rewrite trs t
+
+nf :: TRS -> Term -> Term
+nf trs t = nfWith rewrite trs t
 
 showRule :: Rule -> String
 showRule (l, r) = show l ++ " -> " ++ show r
