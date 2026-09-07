@@ -1,4 +1,4 @@
-module TRSParser (readTRSFile) where
+module TRSParser (readTRSFile, readTRS, parseTerm, parseRule, parseTRS) where
 
 import Data.List (nub)
 import TRS (Rule, Subst, TRS, Term (..), substitute, variables)
@@ -95,6 +95,9 @@ parseTRS = do
   eof
   let (xss, trss) = unzip ps
    in return (convert (concat xss) (concat trss))
+
+readTRS :: String -> Either ParseError TRS
+readTRS = parse parseTRS "<string>"
 
 readTRSFile :: String -> IO (Either ParseError TRS)
 readTRSFile path = parseFromFile parseTRS path
