@@ -77,23 +77,22 @@ compose ((s1, V s2) : ss) ts = case lookup s2 ts of
   Nothing -> (s1, V s2) : compose ss ts
 compose (s : ss) ts = s : compose ss ts
 
--- Pattern match without check
-matchAsIs :: Term -> Term -> Maybe Subst
-matchAsIs (V s) t = Just [(s, t)] -- Rule IV (w/o check)
-matchAsIs (F f1 ts1) (F f2 ts2)
-  -- Rule I (assume f1 and f2 are THE SAME)
-  | Just matches <- maybeMatches, f1 == f2 && length ts1 == length ts2 = Just (concat matches)
-  | otherwise = Nothing -- Rule II
-  where
-    maybeMatches = sequence [matchAsIs t1 t2 | (t1, t2) <- zip ts1 ts2]
-matchAsIs (F _ _) (V _) = Nothing -- Rule III
-
--- Rule IV check (don't care about complexity)
-allValidMatch :: Subst -> Bool
-allValidMatch [] = True
-allValidMatch ((xs1, xt1) : xs)
-  | Just xt2 <- lookup xs1 xs, xt1 /= xt2 = False
-  | otherwise = allValidMatch xs
+-- Pattern matching auxiliary function
+match' :: Subst -> [(Term, Term)] -> Maybe Subst
+match' sigma [] = Just sigma
+match' sigma ((F f1 ts1, F f2 ts2) : ts)
+  -- Rule II: {f(s_1, ..., s_n) ↦ g(t_1, ..., t_n)} ∪ S ==> ⊥ if f /= g
+  | f1 /= f2 = Nothing
+  -- Rule I: {f(s_1, ..., s_n) ↦ f(t_1, ..., t_n)} ∪ S ==> {s_1 ↦ t_1, ..., s_n ↦ t_n} ∪ S
+  | otherwise = match' sigma (zip ts1 ts2 ++ ts)
+-- Rule IV: {x ↦ t} ∪ S ==> ⊥ if x ↦ t' ∈ S with t /= t'
+match' sigma ((V x, t) : ts) =
+  case lookup x sigma of
+    Just t' | t /= t' -> Nothing
+    Just _ -> match' sigma ts
+    _ -> match' ((x, t) : sigma) ts
+-- Includes Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S ==> ⊥
+match' _ _ = Nothing
 
 -- match s t = Just sigma, if s sigma = t for some sigma
 -- match s t = Nothing, otherwise
@@ -102,11 +101,31 @@ allValidMatch ((xs1, xt1) : xs)
 -- match (F "add" [(F "s" [V "x"]), (F "add" [V "x", V "y"])]) (F "add" [(F "s" [(F "add" [(F "0" []), V "x"])]), (F "add" [(F "add" [(F "0" []), (F "0" [])]), V "x"])])
 --   = Nothing
 match :: Term -> Term -> Maybe Subst
-match s t
-  | Just matches' <- matches, allValidMatch matches' = matches
-  | otherwise = Nothing
+match s t = match' [] [(s, t)]
+
+-- Unification auxiliary function
+unify' :: Subst -> [(Term, Term)] -> Maybe Subst
+unify' sigma [] = Just sigma
+-- Rule I, II
+unify' sigma ((F f1 ts1, F f2 ts2) : ts)
+  | f1 /= f2 = Nothing
+  | otherwise = unify' sigma (zip ts1 ts2 ++ ts)
+unify' sigma ((V x, t) : ts)
+  | V y <- t, x == y = unify' sigma ts
+  | x `elem` tv = Nothing -- x ∈ Var(t) ==> ⊥
+  | otherwise = unify' sigma' ts'
   where
-    matches = matchAsIs s t
+    tv = variables t
+    ts' = [(substitute t1 [(x, t)], substitute t2 [(x, t)]) | (t1, t2) <- ts]
+    sigma' = (x, t) : [(s', substitute t' [(x, t)]) | (s', t') <- sigma]
+-- Replace of Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S ==> {x ↦ f(s_1, ..., s_n)} ∪ S to allow bidirectional matching
+unify' sigma ((t@(F _ _), V x) : ts) = unify' sigma ((V x, t) : ts)
+
+-- Unification
+-- unify (F "f" [V "x", F "a" []]) (F "f" [F "b" [], V "y"]) = Just [("y",a),("x",b)]
+-- unify (V "x") (F "f" [V "x"]) = Nothing
+unify :: Term -> Term -> Maybe Subst
+unify s t = unify' [] [(s, t)]
 
 findTRSMatch :: TRS -> Term -> Maybe (Rule, Subst)
 findTRSMatch [] _ = Nothing
