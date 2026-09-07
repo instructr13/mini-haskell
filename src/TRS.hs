@@ -40,8 +40,8 @@ positions (F f (t : ts)) = [[]] ++ [0 : p | p <- positions t] ++ [p + 1 : ps' | 
 -- subTermAt (F "add" [V "x", V "y"]) [1] = V "y"
 -- subTermAt (F "add" [(F "add" [V "x", V "y"]), V "y"]) [0, 0] = V "x"
 subTermAt :: Term -> Position -> Term
-subTermAt (V _) _ = error "subTermAt: cannot use this to a variable"
 subTermAt t [] = t
+subTermAt (V _) _ = error "subTermAt: cannot use sub-position to a variable"
 subTermAt (F _ ts) (p : ps) = subTermAt (ts !! p) ps
 
 -- replace t u p = t[u]_p
@@ -49,8 +49,8 @@ subTermAt (F _ ts) (p : ps) = subTermAt (ts !! p) ps
 -- replace (F "add" [(F "add" [V "x", V "y"]), V "y"]) (F "0" []) [0, 0]
 --   = F "add" [F "add" [F "0" [], V "y"], V "y"]
 replace :: Term -> Term -> Position -> Term
-replace (V _) _ _ = error "replace: cannot use this to a variable"
 replace _ u [] = u
+replace (V _) _ _ = error "replace: cannot use sub-position to a variable"
 replace (F f ts) u (p : ps) = F f (replaceAt p newT ts)
   where
     newT = replace (ts !! p) u ps
