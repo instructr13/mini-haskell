@@ -14,9 +14,8 @@ description: Please see the README on GitHub at <https://github.com/instructr13/
 
 dependencies:
   - base >= 4.7 && < 5
-  - ansi-terminal
   - optparse-applicative
-  - parsec
+  - megaparsec
 
 ghc-options:
   - -Wall
