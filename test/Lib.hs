@@ -1,7 +1,7 @@
-module Test (module Test) where
+module Lib (module Lib) where
 
 import TRS
-import TRSParser
+import TRS.Parser
 
 trs :: String -> TRS
 trs = either (error . show) id . readTRS

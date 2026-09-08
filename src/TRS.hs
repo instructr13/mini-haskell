@@ -1,6 +1,6 @@
 module TRS (module TRS) where
 
-import Data.List (intercalate, nub)
+import Data.List (intercalate, isPrefixOf, nub, nubBy)
 
 data Term = V String | F String [Term] deriving (Eq)
 
@@ -14,9 +14,22 @@ type TRS = [Rule]
 
 type Strategy = TRS -> Term -> Maybe Term
 
+data Outcome = Normal | LimitReached
+  deriving (Eq, Show)
+
 instance Show Term where
   show (V x) = x
   show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
+
+showRule :: Rule -> String
+showRule (l, r) = show l ++ " -> " ++ show r
+
+showTRS :: TRS -> String
+showTRS trs = unlines [showRule rule | rule <- trs]
+
+-- D(R) = {root(l) | l -> r ∈ R}
+definedSymbols :: TRS -> [String]
+definedSymbols trs = nub [f | (F f _, _) <- trs]
 
 -- Pos(t)
 -- positions (F "add" []) = [[]]
@@ -52,7 +65,7 @@ subTermAt (F _ ts) (p : ps) = subTermAt (ts !! p) ps
 replace :: Term -> Term -> Position -> Term
 replace _ u [] = u
 replace (V _) _ _ = error "replace: cannot use sub-position to a variable"
-replace (F f ts) u (p : ps) = F f [if p' == p then newT else t | (p', t) <- zip [0 .. length ts - 1] ts]
+replace (F f ts) u (p : ps) = F f [if p' == p then newT else t | (p', t) <- zip [0 ..] ts]
   where
     newT = replace (ts !! p) u ps
 
@@ -60,6 +73,20 @@ replace (F f ts) u (p : ps) = F f [if p' == p then newT else t | (p', t) <- zip 
 variables :: Term -> [String]
 variables (V x) = [x]
 variables (F _ ts) = nub [x | t <- ts, x <- variables t]
+
+variablesWithDups :: Term -> [String]
+variablesWithDups (V x) = [x]
+variablesWithDups (F _ ts) = [x | t <- ts, x <- variablesWithDups t]
+
+symbolOccurrences :: Term -> [(String, Int)]
+symbolOccurrences (V _) = []
+symbolOccurrences (F f ts) = (f, length ts) : concat [symbolOccurrences t | t <- ts]
+
+-- Rename every variable apart by appending a suffix.
+-- renameTerm "'" (F "f" [V "x", V "y"]) = F "f" [V "x'", V "y'"]
+renameTerm :: String -> Term -> Term
+renameTerm suffix (V x) = V (x ++ suffix)
+renameTerm suffix (F f ts) = F f [renameTerm suffix t | t <- ts]
 
 -- substitute t sigma = t sigma
 substitute :: Term -> Subst -> Term
@@ -127,58 +154,48 @@ unify' sigma ((t@(F _ _), V x) : ts) = unify' sigma ((V x, t) : ts)
 unify :: Term -> Term -> Maybe Subst
 unify s t = unify' [] [(s, t)]
 
-findTRSMatch :: TRS -> Term -> Maybe (Rule, Subst)
-findTRSMatch [] _ = Nothing
-findTRSMatch (rule@(l, _) : trs) t
-  | Just subst <- maybeSubst = Just (rule, subst)
-  | otherwise = findTRSMatch trs t
-  where
-    maybeSubst = match l t
+-- {t | s ->_R t} = {s[r sigma]_p | ∃ p ∈ Pos(s). ∃ l -> r ∈ R. ∃ sigma which satisfies l sigma = s|_p}
+reducts :: TRS -> Term -> [(Position, Term)]
+reducts trs s = [(p, substitute r sigma) | p <- positions s, (l, r) <- trs, Just sigma <- [match l (subTermAt s p)]]
 
 -- rewrite R t = Just u, if t ->_R u for some term u
 -- rewrite R t = Nothing, otherwise
--- 1. Pattern match for the whole term with TRS
--- 2. If the rule is found (let (l, r)), t[l sigma]_ε -> t[r sigma]_ε
--- 3. If the whole term is F, pattern match for all arities
--- 4. Pattern match for all first TRS with s (of ss) and l
 rewrite :: Strategy
-rewrite trs t
-  | Just ((_, r), sigma) <- findTRSMatch trs t = Just (substitute r sigma)
-  | F f ts <- t = case rewriteList ts of
-      Just ts' -> Just (F f ts')
-      Nothing -> Nothing
-  | otherwise = Nothing
+rewrite trs s =
+  case reducts trs s of
+    [] -> Nothing
+    rs -> Just (foldl' (\acc (p, t) -> replace acc t p) s (nubBy encloses rs))
   where
-    rewriteList [] = Nothing
-    rewriteList (u : us)
-      | Just u' <- maybeU = Just (u' : us)
-      | otherwise = case rewriteList us of
-          Just us' -> Just (u : us')
-          Nothing -> Nothing
-      where
-        maybeU = rewrite trs u
+    encloses (p, _) (q, _) = p `isPrefixOf` q
 
 -- nf R t = u if t ->_R ... ->_R u for some normal form u
 nfWith :: Strategy -> TRS -> Term -> Term
-nfWith f trs t
-  | Just u' <- u = nfWith f trs u'
-  | Nothing <- u = t
-  where
-    u = f trs t
-
-nfWithLimit :: Int -> TRS -> Term -> Either Term Term
-nfWithLimit 0 _ t = Left t
-nfWithLimit limit trs t
-  | Just u' <- u = nfWithLimit (limit - 1) trs u'
-  | Nothing <- u = Right t
-  where
-    u = rewrite trs t
+nfWith step trs t = case step trs t of
+  Just u' -> nfWith step trs u'
+  _ -> t
 
 nf :: TRS -> Term -> Term
 nf trs t = nfWith rewrite trs t
 
-showRule :: Rule -> String
-showRule (l, r) = show l ++ " -> " ++ show r
+traceLimit :: Strategy -> Int -> TRS -> Term -> ([Term], Outcome)
+traceLimit step limit trs = go limit
+  where
+    go n t
+      | n <= 0 = ([], LimitReached)
+      | otherwise = case step trs t of
+          Nothing -> ([], Normal)
+          Just u -> (u : rest, o)
+            where
+              (rest, o) = go (n - 1) u
 
-showTRS :: TRS -> String
-showTRS trs = unlines [showRule rule | rule <- trs]
+nfWithLimit :: Int -> TRS -> Term -> Either Term Term
+nfWithLimit limit trs t =
+  case traceLimit rewrite limit trs t of
+    (steps, Normal) -> Right (lastTerm t steps)
+    (steps, LimitReached) -> Left (lastTerm t steps)
+  where
+    lastTerm t0 [] = t0
+    lastTerm _ us = last us
+
+nfTrace :: TRS -> Term -> [Term]
+nfTrace trs t = fst (traceLimit rewrite maxBound trs t)

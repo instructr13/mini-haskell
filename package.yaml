@@ -15,8 +15,14 @@ description: Please see the README on GitHub at <https://github.com/instructr13/
 dependencies:
   - base >= 4.7 && < 5
   - ansi-terminal
+  - containers
+  - mtl
   - optparse-applicative
-  - parsec
+  - megaparsec
+  - parser-combinators
+  - prettyprinter
+  - prettyprinter-ansi-terminal
+  - terminal-size
 
 ghc-options:
   - -Wall
