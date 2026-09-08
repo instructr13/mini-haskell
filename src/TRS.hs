@@ -89,14 +89,13 @@ substitute (V x) sigma
   | otherwise = V x
 substitute (F f ts) sigma = F f [substitute t sigma | t <- ts]
 
+-- theta = compose sigma tau
+--       = {x ↦ s tau | (x ↦ s) ∈ sigma} ∪ {y ↦ t | (y ↦ t) ∈ tau, y ∉ Dom(sigma)}
 -- substitute t (compose sigma tau) = substitute (substitute t sigma) tau
 compose :: Subst -> Subst -> Subst
-compose [] t = t
-compose ((s1, V s2) : ss) ts = case lookup s2 ts of
-  Just (V t2) | s1 == t2 -> compose ss ts -- Skip variables that map to the same variable (ex. {x ↦ x})
-  Just t2 -> (s1, t2) : compose ss ts
-  Nothing -> (s1, V s2) : compose ss ts
-compose (s : ss) ts = s : compose ss ts
+compose sigma tau =
+  [(x, t) | (x, s) <- sigma, let t = substitute s tau, t /= V x]
+    ++ [(y, t) | (y, t) <- tau, y `notElem` map fst sigma, t /= V y]
 
 -- Pattern matching auxiliary function
 match' :: Subst -> [(Term, Term)] -> Maybe Subst
