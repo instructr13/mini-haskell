@@ -1,6 +1,6 @@
 module TRS (module TRS) where
 
-import Data.List (intercalate, nub)
+import Data.List (intercalate, isPrefixOf, nub, nubBy)
 
 data Term = V String | F String [Term] deriving (Eq)
 
@@ -17,6 +17,16 @@ type Strategy = TRS -> Term -> Maybe Term
 instance Show Term where
   show (V x) = x
   show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
+
+-- Rename every variable apart by appending a suffix.
+-- renameTerm "'" (F "f" [V "x", V "y"]) = F "f" [V "x'", V "y'"]
+renameTerm :: String -> Term -> Term
+renameTerm suffix (V x) = V (x ++ suffix)
+renameTerm suffix (F f ts) = F f [renameTerm suffix t | t <- ts]
+
+-- D(R) = {root(l) | l -> r ∈ R}
+definedSymbols :: TRS -> [String]
+definedSymbols trs = nub [f | (F f _, _) <- trs]
 
 -- Pos(t)
 -- positions (F "add" []) = [[]]
@@ -135,28 +145,19 @@ findTRSMatch (rule@(l, _) : trs) t
   where
     maybeSubst = match l t
 
+-- {t | s ->_R t} = {s[r sigma]_p | ∃ p ∈ Pos(s). ∃ l -> r ∈ R. ∃ sigma which satisfies l sigma = s|_p}
+reducts :: TRS -> Term -> [(Position, Term)]
+reducts trs s = [(p, substitute r sigma) | p <- positions s, (l, r) <- trs, Just sigma <- [match l (subTermAt s p)]]
+
 -- rewrite R t = Just u, if t ->_R u for some term u
 -- rewrite R t = Nothing, otherwise
--- 1. Pattern match for the whole term with TRS
--- 2. If the rule is found (let (l, r)), t[l sigma]_ε -> t[r sigma]_ε
--- 3. If the whole term is F, pattern match for all arities
--- 4. Pattern match for all first TRS with s (of ss) and l
 rewrite :: Strategy
-rewrite trs t
-  | Just ((_, r), sigma) <- findTRSMatch trs t = Just (substitute r sigma)
-  | F f ts <- t = case rewriteList ts of
-      Just ts' -> Just (F f ts')
-      Nothing -> Nothing
-  | otherwise = Nothing
+rewrite trs s =
+  case reducts trs s of
+    [] -> Nothing
+    rs -> Just (foldl' (\acc (p, t) -> replace acc t p) s (nubBy encloses rs))
   where
-    rewriteList [] = Nothing
-    rewriteList (u : us)
-      | Just u' <- maybeU = Just (u' : us)
-      | otherwise = case rewriteList us of
-          Just us' -> Just (u : us')
-          Nothing -> Nothing
-      where
-        maybeU = rewrite trs u
+    encloses (p, _) (q, _) = p `isPrefixOf` q
 
 -- nf R t = u if t ->_R ... ->_R u for some normal form u
 nfWith :: Strategy -> TRS -> Term -> Term
