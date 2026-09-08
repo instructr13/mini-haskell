@@ -23,35 +23,49 @@ source-repository head
 
 library
   exposed-modules:
-      Test
+      Error
+      Source
       TRS
-      TRSParser
+      TRS.Check
+      TRS.Error
+      TRS.Lexer
+      TRS.Loader
+      TRS.Parser
+      TRS.Pretty
+      TRS.Syntax
+      TRS.TokenStream
+      Util
   other-modules:
       Paths_mini_haskell
   hs-source-dirs:
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      ansi-terminal
-    , base >=4.7 && <5
+      base >=4.7 && <5
+    , containers
+    , megaparsec
+    , mtl
     , optparse-applicative
-    , parsec
+    , prettyprinter
   default-language: Haskell2010
 
 executable mini-haskell-exe
   main-is: Main.hs
   other-modules:
       Args
+      Render
       Paths_mini_haskell
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ansi-terminal
-    , base >=4.7 && <5
+      base >=4.7 && <5
+    , containers
+    , megaparsec
     , mini-haskell
+    , mtl
     , optparse-applicative
-    , parsec
+    , prettyprinter
   default-language: Haskell2010
 
 test-suite mini-haskell-test
@@ -63,9 +77,11 @@ test-suite mini-haskell-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ansi-terminal
-    , base >=4.7 && <5
+      base >=4.7 && <5
+    , containers
+    , megaparsec
     , mini-haskell
+    , mtl
     , optparse-applicative
-    , parsec
+    , prettyprinter
   default-language: Haskell2010

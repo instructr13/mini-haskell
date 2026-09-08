@@ -1,8 +1,19 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module TRS (module TRS) where
 
 import Data.List (intercalate, isPrefixOf, nub, nubBy)
+import Prettyprinter
 
 data Term = V String | F String [Term] deriving (Eq)
+
+instance Pretty Term where
+  pretty (V x) = pretty x
+  pretty (F f []) = pretty f
+  pretty (F f ts) = group (pretty f <> "(" <> nest 2 (arity ts) <> ")")
+    where
+      arity :: [Term] -> Doc ann
+      arity ts' = align (sep (punctuate "," (map pretty ts')))
 
 type Position = [Int]
 
@@ -136,14 +147,6 @@ unify' sigma ((t@(F _ _), V x) : ts) = unify' sigma ((V x, t) : ts)
 -- unify (V "x") (F "f" [V "x"]) = Nothing
 unify :: Term -> Term -> Maybe Subst
 unify s t = unify' [] [(s, t)]
-
-findTRSMatch :: TRS -> Term -> Maybe (Rule, Subst)
-findTRSMatch [] _ = Nothing
-findTRSMatch (rule@(l, _) : trs) t
-  | Just subst <- maybeSubst = Just (rule, subst)
-  | otherwise = findTRSMatch trs t
-  where
-    maybeSubst = match l t
 
 -- {t | s ->_R t} = {s[r sigma]_p | ∃ p ∈ Pos(s). ∃ l -> r ∈ R. ∃ sigma which satisfies l sigma = s|_p}
 reducts :: TRS -> Term -> [(Position, Term)]
