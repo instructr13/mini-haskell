@@ -1,11 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module HS.Pretty
-  ( renderCompact,
-    renderWide,
-    pprintModule,
-    pprintDecl,
-    prettyModule,
+  ( prettyModule,
     prettyDecl,
     prettyExpr,
     prettyPat,
@@ -14,51 +10,38 @@ module HS.Pretty
   )
 where
 
--- AI-Generated Pretty Printer
-
 import HS.Name
 import HS.Syntax
 import Prettyprinter
-import Prettyprinter.Render.String (renderString)
 import Render
 
--- | 折り返さずに一行で描画する。
-renderCompact :: Doc Ann -> String
-renderCompact = renderString . layoutPretty (LayoutOptions Unbounded) . unAnnotate
-
-renderWide :: Doc Ann -> String
-renderWide = renderPlain 100
-
-pprintModule :: Module -> String
-pprintModule = renderCompact . prettyModule
-
-pprintDecl :: Decl -> String
-pprintDecl = renderCompact . prettyDecl
+-- Joins with a separator placed between the items.
+joinWith :: Doc Ann -> [Doc Ann] -> Doc Ann
+joinWith between = concatWith (\a b -> a <> between <> b)
 
 prettyModule :: Module -> Doc Ann
-prettyModule ds =
-  concatWith (\a b -> a <> space <> punct ";" <> hardline <> b) (concatMap declLines ds)
+prettyModule ds = joinWith (space <> punct ";" <> hardline) (concatMap declLines ds)
 
 declLines :: Decl -> [Doc Ann]
 declLines (DFun n cs) = map (prettyClause n) cs
-declLines d@(DData _ _ _) = [prettyDecl d]
-declLines d@(DFixity _ _ _) = [prettyDecl d]
+declLines (DData t vs cs) = [dataDoc t vs cs]
+declLines (DFixity a n ops) = [fixityDoc a n ops]
 
 prettyDecl :: Decl -> Doc Ann
-prettyDecl (DData t vs cs) =
+prettyDecl = vsep . declLines
+
+dataDoc :: TyConName -> [VarName] -> [(ConName, Int)] -> Doc Ann
+dataDoc t vs cs =
   hsep $
     [keyword "data", conName (pretty (unTyConName t))]
       ++ map (varName . pretty . unVarName) vs
-      ++ [operator "=", concatWith (\a b -> a <+> punct "|" <+> b) (map conDecl cs)]
+      ++ [operator "=", joinWith (space <> punct "|" <> space) (map conDecl cs)]
   where
     conDecl (c, n) = hsep (conName (pretty (unConName c)) : replicate n (varName "a"))
-prettyDecl (DFixity a n ops) =
-  hsep [keyword (assoc a), number n, concatWith (\x y -> x <> punct "," <+> y) (map opDoc ops)]
-  where
-    assoc AssocLeft = "infixl"
-    assoc AssocRight = "infixr"
-    assoc AssocNone = "infix"
-prettyDecl (DFun n cs) = vsep (map (prettyClause n) cs)
+
+fixityDoc :: Assoc -> Int -> [String] -> Doc Ann
+fixityDoc a n ops =
+  hsep [keyword (pretty (assocKeyword a)), number n, joinWith (punct "," <> space) (map opDoc ops)]
 
 prettyClause :: VarName -> Clause -> Doc Ann
 prettyClause n (Clause ps rhs ws) =
@@ -77,11 +60,14 @@ prettyRhs eq (Guarded gs) =
 
 prettyWhere :: [Decl] -> Doc Ann
 prettyWhere [] = mempty
-prettyWhere ds = space <> keyword "where" <+> braceBlock (concatMap declLines ds)
+prettyWhere ds = space <> keyword "where" <+> declBlock ds
+
+declBlock :: [Decl] -> Doc Ann
+declBlock = braceBlock . concatMap declLines
 
 braceBlock :: [Doc Ann] -> Doc Ann
 braceBlock ds =
-  punct "{" <+> concatWith (\a b -> a <> punct ";" <+> b) ds <+> punct "}"
+  punct "{" <+> joinWith (punct ";" <> space) ds <+> punct "}"
 
 data Prec = PTop | POp | PApply | PArg deriving (Eq, Ord, Show)
 
@@ -90,10 +76,10 @@ prettyExpr ctx e = case e of
   EVar v -> nameDoc (unVarName v)
   ECon c -> conDoc (unConName c)
   ELiteral l -> prettyLiteral l
-  EList es -> brackets' (commaSep (map (prettyExpr PTop) es))
-  ETuple es -> parens' (commaSep (map (prettyExpr PTop) es))
-  ESectionL op x -> parens' (prettyExpr PApply x <+> opDoc op)
-  ESectionR op x -> parens' (opDoc op <+> prettyExpr PApply x)
+  EList es -> bracketed (commaSep (map (prettyExpr PTop) es))
+  ETuple es -> parenthesized (commaSep (map (prettyExpr PTop) es))
+  ESectionL op x -> parenthesized (prettyExpr PApply x <+> opDoc op)
+  ESectionR op x -> parenthesized (opDoc op <+> prettyExpr PApply x)
   EApply _ _ ->
     let (f, as) = appSpine e
      in wrap PApply (hsep (prettyExpr PApply f : map (prettyExpr PArg) as))
@@ -107,14 +93,14 @@ prettyExpr ctx e = case e of
       PTop
       ( operator "\\"
           <> hsep (map (prettyPat PArg) ps)
-          <+> operator "->"
-          <+> prettyExpr PTop b
+            <+> operator "->"
+            <+> prettyExpr PTop b
       )
   ELet ds b ->
     wrap
       PTop
       ( keyword "let"
-          <+> braceBlock (concatMap declLines ds)
+          <+> declBlock ds
           <+> keyword "in"
           <+> prettyExpr PTop b
       )
@@ -137,7 +123,7 @@ prettyExpr ctx e = case e of
           <+> braceBlock (map prettyAlt alts)
       )
   where
-    wrap lvl d = if ctx > lvl then parens' d else d
+    wrap = parenWhen ctx
 
 prettyAlt :: Alt -> Doc Ann
 prettyAlt (Alt p rhs ws) =
@@ -148,23 +134,32 @@ prettyPat ctx p = case p of
   PVar v -> nameDoc (unVarName v)
   PWild -> varName "_"
   PLiteral l -> prettyLiteral l
-  PList ps -> brackets' (commaSep (map (prettyPat PTop) ps))
-  PTuple ps -> parens' (commaSep (map (prettyPat PTop) ps))
+  PList ps -> bracketed (commaSep (map (prettyPat PTop) ps))
+  PTuple ps -> parenthesized (commaSep (map (prettyPat PTop) ps))
   PAs v q -> nameDoc (unVarName v) <> operator "@" <> prettyPat PArg q
   PCon c [] -> conDoc (unConName c)
   PCon c ps -> wrap PApply (hsep (conDoc (unConName c) : map (prettyPat PArg) ps))
+  POpChain p0 rs ->
+    wrap POp $
+      hsep $
+        prettyPat PApply p0
+          : concat [[opDoc op, prettyPat PApply x] | (op, x) <- rs]
   where
-    wrap lvl d = if ctx > lvl then parens' d else d
+    wrap = parenWhen ctx
+
+parenWhen :: Prec -> Prec -> Doc Ann -> Doc Ann
+parenWhen ctx lvl d = if ctx > lvl then parenthesized d else d
+
+symDoc :: (Doc Ann -> Doc Ann) -> String -> Doc Ann
+symDoc ann s
+  | isOperatorName s = parenthesized (ann (pretty s))
+  | otherwise = ann (pretty s)
 
 nameDoc :: String -> Doc Ann
-nameDoc s
-  | isOperatorName s = parens' (operator (pretty s))
-  | otherwise = varName (pretty s)
+nameDoc = symDoc varName
 
 conDoc :: String -> Doc Ann
-conDoc s
-  | isOperatorName s = parens' (conName (pretty s))
-  | otherwise = conName (pretty s)
+conDoc = symDoc conName
 
 opDoc :: String -> Doc Ann
 opDoc s
@@ -177,7 +172,10 @@ prettyLiteral (LChar c) = literal ("'" <> pretty (escape [c]) <> "'")
 prettyLiteral (LString s) = literal ("\"" <> pretty (escape s) <> "\"")
 
 escape :: String -> String
-escape = concatMap $ \c -> case c of
+escape s = [c | ch <- s, c <- escapeChar ch]
+
+escapeChar :: Char -> String
+escapeChar c = case c of
   '\n' -> "\\n"
   '\t' -> "\\t"
   '\r' -> "\\r"
@@ -185,12 +183,3 @@ escape = concatMap $ \c -> case c of
   '\'' -> "\\'"
   '"' -> "\\\""
   _ -> [c]
-
-commaSep :: [Doc Ann] -> Doc Ann
-commaSep = hsep . punctuate (punct ",")
-
-parens' :: Doc Ann -> Doc Ann
-parens' d = punct "(" <> d <> punct ")"
-
-brackets' :: Doc Ann -> Doc Ann
-brackets' d = punct "[" <> d <> punct "]"

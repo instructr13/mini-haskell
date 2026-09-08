@@ -4,10 +4,12 @@ module HS.Parser
   ( parseHS,
     parseTokens,
     groupClauses,
+    groupClausesDeep,
   )
 where
 
-import Control.Monad (void)
+import Control.Monad (mfilter, void)
+import Data.Bifunctor (first)
 import Data.List (nub)
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
@@ -17,6 +19,7 @@ import HS.Lexer
 import HS.Name
 import HS.Syntax
 import HS.TokenStream
+import HS.Traverse (mapDeclListsM)
 import Text.Megaparsec hiding (Token, Tokens)
 
 type P = Parsec Void TokenStream
@@ -27,27 +30,33 @@ parseHS ::
   String ->
   Either CompileError Module
 parseHS lay name src = do
-  toks <- mapLeft syntaxError (lexHS name src)
+  toks <- first syntaxError (lexHS name src)
   parseTokens name src (lay toks)
 
 parseTokens :: FilePath -> String -> [PosToken] -> Either CompileError Module
 parseTokens name src toks = do
-  ds <- mapLeft syntaxError (parse (pModule <* eof) name (tokenStream src toks))
-  groupClauses ds
+  ds <- first syntaxError (parse (pModule <* eof) name (tokenStream src toks))
+  groupClausesDeep ds
+
+-- Adjacent clauses of one function must be merged in every declaration list,
+-- not only at the top level: a local definition with several clauses is one
+-- function, and leaving it split makes each half look non-exhaustive.
+groupClausesDeep :: Module -> Either CompileError Module
+groupClausesDeep ds = do
+  grouped <- groupClauses ds
+  mapDeclListsM groupClauses grouped
 
 syntaxError :: (TraversableStream s, VisualStream s) => ParseErrorBundle s Void -> CompileError
 syntaxError e = SyntaxError (bundleErrorPos e) (errorBundlePretty e)
-
-mapLeft :: (a -> b) -> Either a c -> Either b c
-mapLeft f = either (Left . f) Right
 
 satisfyT :: (Token -> Maybe a) -> P a
 satisfyT f = token (f . unvirtual . ptTok) Set.empty
 
 tok :: Token -> P ()
-tok t =
-  void (satisfyT (\t' -> if t' == unvirtual t then Just () else Nothing))
-    <?> showToken t
+tok t = void (satisfyT matching) <?> showToken t
+  where
+    wanted = unvirtual t
+    matching t' = if t' == wanted then Just () else Nothing
 
 keyword :: String -> P ()
 keyword s = tok (TKeyword s)
@@ -180,12 +189,7 @@ pDeriving = keyword "deriving" *> (void conName <|> void (parens (sepBy conName 
 
 pFixity :: P Decl
 pFixity = do
-  a <-
-    choice
-      [ AssocLeft <$ keyword "infixl",
-        AssocRight <$ keyword "infixr",
-        AssocNone <$ keyword "infix"
-      ]
+  a <- choice [x <$ keyword (assocKeyword x) | x <- [minBound .. maxBound]]
   n <- option 9 (fromInteger <$> intLiteral)
   ops <- sepBy1 pOpName (special ',')
   pure (DFixity a n ops)
@@ -204,10 +208,12 @@ pFunLhs = try pInfixLhs <|> pPrefixLhs
     -- 被演算子は pAPat ではなく pPat。Haskell の @funlhs -> pat varop pat@
     -- に従い、@Cons x xs ++ ys = ...@ のように括弧なしの構成子適用を
     -- 左右に書けるようにするため。
+    -- The operands are pOpPat, not pPat: a pattern operator chain on the
+    -- left would swallow the operator being defined.
     pInfixLhs = do
-      l <- pPat
+      l <- pOpPat
       op <- pOpName
-      r <- pPat
+      r <- pOpPat
       pure (VarName op, [l, r])
 
 pFunName :: P VarName
@@ -259,15 +265,11 @@ pParenExpr = parens inner
           do
             e <- pExpr
             choice
-              [ (\op -> ESectionL op e) <$> pOpName, -- (x +)
+              [ flip ESectionL e <$> pOpName, -- (x +)
                 ETuple . (e :) <$> some (special ',' *> pExpr),
                 pure e
               ]
         ]
-
-opRef :: String -> Expr
-opRef op@(':' : _) = ECon (ConName op)
-opRef op = EVar (VarName op)
 
 pLam :: P Expr
 pLam = do
@@ -309,7 +311,21 @@ pAlt = do
   pure (Alt p r ws)
 
 pPat :: P Pat
-pPat = try (PCon <$> conName <*> some pAPat) <|> pAPat
+pPat = do
+  p <- pOpPat
+  rs <- many ((,) <$> pConOpName <*> pOpPat)
+  pure (if null rs then p else POpChain p rs)
+
+-- One operand of a pattern operator chain.
+pOpPat :: P Pat
+pOpPat = try (PCon <$> conName <*> some pAPat) <|> pAPat
+
+nullaryCon :: ConName -> Pat
+nullaryCon c = PCon c []
+
+-- Only a constructor operator may appear in a pattern (Haskell 2010 3.17).
+pConOpName :: P String
+pConOpName = try (label "constructor operator" (mfilter isConOperator pOpName))
 
 pAPat :: P Pat
 pAPat =
@@ -317,7 +333,7 @@ pAPat =
     [ try (PAs <$> varName <* reservedOp "@" <*> pAPat),
       PVar <$> varName,
       PWild <$ reservedOp "_",
-      (\c -> PCon c []) <$> conName,
+      nullaryCon <$> conName,
       PLiteral <$> pLiteral,
       brackets (PList <$> sepBy pPat (special ',')),
       parens $ do

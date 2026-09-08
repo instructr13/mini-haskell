@@ -3,11 +3,14 @@ module Args (Argument (..), argParserInfo) where
 import Data.Version (showVersion)
 import Options.Applicative
 import Paths_mini_haskell (version)
+import HS.Name (NumericRep (..), numericName, numericOfName)
 import Render (ColorMode (..))
 
 data Argument = Argument
   { file :: Maybe String,
-    color :: ColorMode
+    color :: ColorMode,
+    coreOnlyMode :: Bool,
+    numericMode :: NumericRep
   }
   deriving (Show)
 
@@ -21,6 +24,18 @@ argParser =
           )
       )
     <*> colorOption
+    <*> switch
+      ( long "core-only"
+          <> help "Disable every desugaring layer (only the core language compiles)"
+      )
+    <*> option
+      (eitherReader readNumeric)
+      ( long "numeric"
+          <> metavar "REP"
+          <> value NumPeano
+          <> showDefaultWith numericName
+          <> help "Numeric literal representation: peano or binary"
+      )
 
 colorOption :: Parser ColorMode
 colorOption =
@@ -32,6 +47,10 @@ colorOption =
         <> showDefaultWith showColorMode
         <> help "Colorize output: auto, always or never"
     )
+
+readNumeric :: String -> Either String NumericRep
+readNumeric s =
+  maybe (Left ("expected peano or binary, but got " ++ show s)) Right (numericOfName s)
 
 readColorMode :: String -> Either String ColorMode
 readColorMode s = case s of

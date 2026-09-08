@@ -156,10 +156,16 @@ pToken =
     ]
     <?> "token"
 
+isIdentStart :: Char -> Bool
+isIdentStart c = isAlpha c || c == '_'
+
+isIdentPart :: Char -> Bool
+isIdentPart c = isAlphaNum c || c == '_' || c == '\''
+
 identifierOrKeyword :: Parser Token
 identifierOrKeyword = do
-  c <- satisfy (\ch -> isAlpha ch || ch == '_')
-  cs <- many (satisfy (\ch -> isAlphaNum ch || ch == '_' || ch == '\''))
+  c <- satisfy isIdentStart
+  cs <- many (satisfy isIdentPart)
   let s = c : cs
   pure $
     if s == "_"

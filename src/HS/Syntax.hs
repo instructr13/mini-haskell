@@ -24,7 +24,15 @@ data Rhs
 
 -- infixl, infixr, infix
 data Assoc = AssocLeft | AssocRight | AssocNone
-  deriving (Eq, Show)
+  deriving (Eq, Show, Enum, Bounded)
+
+assocKeyword :: Assoc -> String
+assocKeyword AssocLeft = "infixl"
+assocKeyword AssocRight = "infixr"
+assocKeyword AssocNone = "infix"
+
+assocOfKeyword :: String -> Maybe Assoc
+assocOfKeyword k = lookup k [(assocKeyword a, a) | a <- [minBound .. maxBound]]
 
 -- [C] shows the expression is remained within core AST
 data Pat
@@ -34,7 +42,8 @@ data Pat
   | PAs VarName Pat -- x@p ==> PVar & ELet
   | PLiteral Literal -- 0, 'a' ==> PCon & equality comparison
   | PList [Pat] -- [x, y] ==> ditto
-  | PTuple [Pat] -- (x, y) ==> ditto
+  | PTuple [Pat] -- (x, y)
+  | POpChain Pat [(String, Pat)] -- x : y : ys ==> tree of PCon ==> ditto
 
 data Expr
   = EVar VarName -- [C] x, f, (++)
@@ -59,6 +68,25 @@ data Literal = LInt Integer | LChar Char | LString String
 
 clauseArity :: Clause -> Int
 clauseArity = length . clPats
+
+-- All clauses of a function have the same arity (the parser rejects a
+-- mismatch), so the first one speaks for the group.
+funArity :: [Clause] -> Int
+funArity (c : _) = clauseArity c
+funArity [] = 0
+
+opRef :: String -> Expr
+opRef op
+  | isConOperator op = ECon (ConName op)
+  | otherwise = EVar (VarName op)
+
+opApply :: String -> Expr -> Expr -> Expr
+opApply op l r = EApply (EApply (opRef op) l) r
+
+-- A pattern operator is always a constructor operator (Haskell 2010 3.17),
+-- which the parser enforces, so this is total.
+opPatApply :: String -> Pat -> Pat -> Pat
+opPatApply op l r = PCon (ConName op) [l, r]
 
 appSpine :: Expr -> (Expr, [Expr])
 appSpine = go []

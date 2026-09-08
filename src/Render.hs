@@ -24,6 +24,11 @@ module Render
     hPutDocLn,
     hPutDoc,
     renderPlain,
+    renderOneLine,
+    parenthesized,
+    bracketed,
+    commaSep,
+    commaSepWrap,
   )
 where
 
@@ -132,6 +137,24 @@ hPutDocLn o d = do
   hPutDoc o d
   hPutStrLn (outHandle o) ""
   hFlush (outHandle o)
+
+parenthesized :: Doc Ann -> Doc Ann
+parenthesized d = punct "(" <> d <> punct ")"
+
+bracketed :: Doc Ann -> Doc Ann
+bracketed d = punct "[" <> d <> punct "]"
+
+commaSep :: [Doc Ann] -> Doc Ann
+commaSep = hsep . punctuate (punct ",")
+
+commaSepWrap :: [Doc Ann] -> Doc Ann
+commaSepWrap = align . sep . punctuate (punct ",")
+
+renderOneLine :: Doc Ann -> String
+renderOneLine = renderWith Unbounded
+
+renderWith :: PageWidth -> Doc Ann -> String
+renderWith pw = renderString . layoutPretty (LayoutOptions pw) . unAnnotate
 
 renderPlain :: Int -> Doc Ann -> String
 renderPlain w =

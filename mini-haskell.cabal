@@ -16,6 +16,31 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+    examples/addall.hs
+    examples/alpha.hs
+    examples/clos-chain.hs
+    examples/colonlist.hs
+    examples/demand.hs
+    examples/firsttwo.hs
+    examples/headof.hs
+    examples/lambda-map.hs
+    examples/litpat.hs
+    examples/map.hs
+    examples/Prelude/Base.hs
+    examples/Prelude/HO.hs
+    examples/Prelude/Num.hs
+    examples/qsort-explicit.hs
+    examples/qsort.hs
+    examples/shortcircuit.hs
+    examples/simple.hs
+    examples/wildcard.hs
+    examples/trs/add.trs
+    examples/trs/qsort.trs
+    test/data/stage10/core.hs
+    test/data/stage10/where.hs
+    test/data/stage3/bad-indent.hs
+    test/data/stage3/underflow.hs
+    test/golden/prelude-base.trs.golden
 
 source-repository head
   type: git
@@ -23,17 +48,28 @@ source-repository head
 
 library
   exposed-modules:
+      Args
       HS.Check
       HS.Compile
+      HS.Defunc
+      HS.Desugar
       HS.Error
       HS.Fixity
+      HS.Layout
       HS.Lexer
+      HS.Lift
+      HS.Match
+      HS.Monad
       HS.Name
       HS.Parser
       HS.Pretty
+      HS.Rename
       HS.Syntax
       HS.TokenStream
+      HS.ToTRS
+      HS.Traverse
       Render
+      Repl
       Source
       TRS
       TRS.Parser
@@ -45,7 +81,7 @@ library
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       ansi-terminal
-    , base >=4.7 && <5
+    , base >=4.20 && <5
     , containers
     , megaparsec
     , mtl
@@ -59,15 +95,13 @@ library
 executable mini-haskell-exe
   main-is: Main.hs
   other-modules:
-      Args
-      Repl
       Paths_mini_haskell
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       ansi-terminal
-    , base >=4.7 && <5
+    , base >=4.20 && <5
     , containers
     , megaparsec
     , mini-haskell
@@ -83,15 +117,34 @@ test-suite mini-haskell-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Lib
+      Suite.Check
+      Suite.Decode
+      Suite.Env
+      Suite.Eval
+      Suite.Examples
+      Suite.Gen.Layout
+      Suite.Gen.OpChain
+      Suite.Gen.Term
+      Suite.Golden
+      Suite.Laws.Strategy
+      Suite.Laws.Term
+      Suite.Stage2
+      Suite.Stage3
+      Suite.Stages
+      Suite.Support
+      Suite.Traverse
       Paths_mini_haskell
   hs-source-dirs:
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      ansi-terminal
-    , base >=4.7 && <5
+      QuickCheck
+    , ansi-terminal
+    , base >=4.20 && <5
+    , bytestring
     , containers
+    , directory
+    , filepath
     , megaparsec
     , mini-haskell
     , mtl
@@ -99,5 +152,9 @@ test-suite mini-haskell-test
     , parser-combinators
     , prettyprinter
     , prettyprinter-ansi-terminal
+    , tasty
+    , tasty-golden
+    , tasty-hunit
+    , tasty-quickcheck
     , terminal-size
   default-language: Haskell2010

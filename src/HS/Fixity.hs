@@ -1,17 +1,14 @@
--- | 中置式の優先順位解決。
---
---   'HS.Parser' は @a + b * c@ を 'EOpChain' として平坦なまま残す。
---   固定度宣言はモジュール中のどこに書かれていてもよいので、全宣言を
---   読み終えてからでないと木の形が決まらないためである。ここでその
---   'EOpChain' を 'EApply' の木に落とす。
 module HS.Fixity
   ( Fixity (..),
     FixityEnv,
     defaultFixities,
+    fallbackFixity,
+    fixityOf,
     collectFixities,
     resolveModule,
-    resolveDecl,
-    resolveExpr,
+    resolveFixity,
+    resolveChain,
+    resolvePatChain,
     showFixity,
   )
 where
@@ -19,8 +16,8 @@ where
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import HS.Error
-import HS.Name
 import HS.Syntax
+import HS.Traverse
 
 data Fixity = Fixity {fixAssoc :: Assoc, fixPrec :: Int}
   deriving (Eq, Show)
@@ -28,11 +25,7 @@ data Fixity = Fixity {fixAssoc :: Assoc, fixPrec :: Int}
 type FixityEnv = Map String Fixity
 
 showFixity :: String -> Fixity -> String
-showFixity op (Fixity a n) = word a ++ " " ++ show n ++ " " ++ op
-  where
-    word AssocLeft = "infixl"
-    word AssocRight = "infixr"
-    word AssocNone = "infix"
+showFixity op (Fixity a n) = assocKeyword a ++ " " ++ show n ++ " " ++ op
 
 defaultFixities :: FixityEnv
 defaultFixities =
@@ -61,78 +54,80 @@ collectFixities ds = go defaultFixities Map.empty declared
   where
     declared = [(op, Fixity a n) | DFixity a n ops <- ds, op <- ops]
     go env _ [] = Right env
-    go env seen ((op, fx) : rest) = case Map.lookup op seen of
-      Just prev
-        | prev /= fx -> Left (FixityConflict (showFixity op prev) (showFixity op fx))
-      _ -> go (Map.insert op fx env) (Map.insert op fx seen) rest
+    go env seen ((op, fx) : rest)
+      | fixPrec fx < 0 || fixPrec fx > 9 =
+          Left (FixityLevelOutOfRange op (fixPrec fx))
+      | otherwise = case Map.lookup op seen of
+          Just prev
+            | prev /= fx ->
+                Left (FixityConflict (showFixity op prev) (showFixity op fx))
+          _ -> go (Map.insert op fx env) (Map.insert op fx seen) rest
 
 resolveModule :: FixityEnv -> Module -> Either CompileError Module
-resolveModule env = traverse (resolveDecl env)
+resolveModule env = traverse (onDecl (fixityPass env))
 
-resolveDecl :: FixityEnv -> Decl -> Either CompileError Decl
-resolveDecl env d = case d of
-  DFun n cs -> DFun n <$> traverse (resolveClause env) cs
-  DData {} -> Right d
-  DFixity {} -> Right d
+resolveFixity :: FixityEnv -> Expr -> Either CompileError Expr
+resolveFixity env = onExpr (fixityPass env)
 
-resolveClause :: FixityEnv -> Clause -> Either CompileError Clause
-resolveClause env (Clause ps rhs ws) =
-  Clause ps <$> resolveRhs env rhs <*> resolveModule env ws
-
-resolveRhs :: FixityEnv -> Rhs -> Either CompileError Rhs
-resolveRhs env (Plain e) = Plain <$> resolveExpr env e
-resolveRhs env (Guarded gs) =
-  Guarded <$> traverse both gs
+-- Everything except EOpChain is the structural traversal, so the pass is
+-- exactly the one interesting case.
+fixityPass :: FixityEnv -> Pass (Either CompileError)
+fixityPass env = mkPass $ \self base ->
+  base
+    { onExpr = resolvedExpr self base,
+      onPat = resolvedPat self base
+    }
   where
-    both (g, e) = (,) <$> resolveExpr env g <*> resolveExpr env e
+    resolvedExpr self base e = case e of
+      EOpChain _ _ -> do
+        e' <- stepExpr self e
+        case e' of
+          EOpChain e0 rs -> resolveChain env e0 rs
+          _ -> Right e'
+      _ -> onExpr base e
 
-resolveAlt :: FixityEnv -> Alt -> Either CompileError Alt
-resolveAlt env (Alt p rhs ws) =
-  Alt p <$> resolveRhs env rhs <*> resolveModule env ws
-
-resolveExpr :: FixityEnv -> Expr -> Either CompileError Expr
-resolveExpr env = go
-  where
-    go e = case e of
-      EOpChain e0 rs -> do
-        e0' <- go e0
-        rs' <- traverse (\(op, x) -> (,) op <$> go x) rs
-        resolveChain env e0' rs'
-      EApply f x -> EApply <$> go f <*> go x
-      ESectionL op x -> ESectionL op <$> go x
-      ESectionR op x -> ESectionR op <$> go x
-      EIf c t f -> EIf <$> go c <*> go t <*> go f
-      ECase s alts -> ECase <$> go s <*> traverse (resolveAlt env) alts
-      ELet ds b -> ELet <$> resolveModule env ds <*> go b
-      ELambda ps b -> ELambda ps <$> go b
-      EList es -> EList <$> traverse go es
-      ETuple es -> ETuple <$> traverse go es
-      EVar _ -> Right e
-      ECon _ -> Right e
-      ELiteral _ -> Right e
+    resolvedPat self base q = case q of
+      POpChain _ _ -> do
+        q' <- stepPat self q
+        case q' of
+          POpChain p0 rs -> resolvePatChain env p0 rs
+          _ -> Right q'
+      _ -> onPat base q
 
 resolveChain :: FixityEnv -> Expr -> [(String, Expr)] -> Either CompileError Expr
-resolveChain env e0 ops = fst <$> parse ("", Fixity AssocNone (-1)) e0 ops
+resolveChain env = resolveChainWith opApply env Nothing
+
+resolvePatChain :: FixityEnv -> Pat -> [(String, Pat)] -> Either CompileError Pat
+resolvePatChain env = resolveChainWith opPatApply env Nothing
+
+-- Precedence climbing. 'left' is the operator we are currently the
+-- right-hand operand of; Nothing at the top, which removes the need for a
+-- sentinel fixity that could collide with a real one.
+resolveChainWith ::
+  (String -> a -> a -> a) ->
+  FixityEnv ->
+  Maybe (String, Fixity) ->
+  a ->
+  [(String, a)] ->
+  Either CompileError a
+resolveChainWith app env left0 lhs0 ops0 = fst <$> parse left0 lhs0 ops0
   where
-    parse ::
-      (String, Fixity) ->
-      Expr ->
-      [(String, Expr)] ->
-      Either CompileError (Expr, [(String, Expr)])
     parse _ lhs [] = Right (lhs, [])
-    parse left@(op1, f1) lhs rest@((op2, rhs) : more)
-      | fixPrec f1 == fixPrec f2 && (fixAssoc f1 /= fixAssoc f2 || fixAssoc f1 == AssocNone) =
+    parse left lhs rest@((op2, rhs) : more)
+      | Just (op1, f1) <- left,
+        conflicts f1 f2 =
           Left (FixityConflict (showFixity op1 f1) (showFixity op2 f2))
-      | fixPrec f1 > fixPrec f2 || (fixPrec f1 == fixPrec f2 && fixAssoc f1 == AssocLeft) =
-          Right (lhs, rest)
+      | Just (_, f1) <- left, yields f1 f2 = Right (lhs, rest)
       | otherwise = do
-          (rhs', more') <- parse (op2, f2) rhs more
-          parse left (opApply op2 lhs rhs') more'
+          (rhs', more') <- parse (Just (op2, f2)) rhs more
+          parse left (app op2 lhs rhs') more'
       where
         f2 = fixityOf env op2
 
-opApply :: String -> Expr -> Expr -> Expr
-opApply op l r = EApply (EApply (opRef op) l) r
-  where
-    opRef (':' : _) = ECon (ConName op)
-    opRef _ = EVar (VarName op)
+    conflicts f1 f2 =
+      fixPrec f1 == fixPrec f2
+        && (fixAssoc f1 /= fixAssoc f2 || fixAssoc f1 == AssocNone)
+
+    yields f1 f2 =
+      fixPrec f1 > fixPrec f2
+        || (fixPrec f1 == fixPrec f2 && fixAssoc f1 == AssocLeft)

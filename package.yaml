@@ -6,6 +6,10 @@ author: "Mido <mido@wycey.dev>"
 
 extra-source-files:
   - README.md
+  - examples/**/*.hs
+  - examples/**/*.trs
+  - test/data/**/*.hs
+  - test/golden/**/*.golden
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
@@ -13,7 +17,7 @@ extra-source-files:
 description: Please see the README on GitHub at <https://github.com/instructr13/mini-haskell#readme>
 
 dependencies:
-  - base >= 4.7 && < 5
+  - base >= 4.20 && < 5
   - ansi-terminal
   - containers
   - mtl
@@ -59,3 +63,11 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - mini-haskell
+      - tasty
+      - tasty-hunit
+      - tasty-quickcheck
+      - tasty-golden
+      - QuickCheck
+      - bytestring
+      - directory
+      - filepath
