@@ -23,12 +23,14 @@ source-repository head
 
 library
   exposed-modules:
+      ApplicativeTRS.Desugar
+      ApplicativeTRS.Desugar.List
+      ApplicativeTRS.Desugar.Peano
       ApplicativeTRS.Elab
       ApplicativeTRS.Lexer
       ApplicativeTRS.Loader
       ApplicativeTRS.Parser
       ApplicativeTRS.Pretty
-      ApplicativeTRS.Special.Peano
       ApplicativeTRS.Syntax
       ApplicativeTRS.TokenStream
       Error

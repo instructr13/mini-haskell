@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ApplicativeTRS.Pretty (prettyApplicativeTerm) where
 
 import Prettyprinter
@@ -38,10 +40,10 @@ operators =
 operatorsByFunctor :: [(String, OpSpec)]
 operatorsByFunctor = [(opFunctor o, o) | o <- operators]
 
-fromPeano :: Term -> Maybe Int
-fromPeano (F "s" [f]) = fmap (+ 1) (fromPeano f)
-fromPeano (F "0" []) = Just 0
-fromPeano _ = Nothing
+sugarPeano :: Term -> Maybe Int
+sugarPeano (F "s" [f]) = fmap (+ 1) (sugarPeano f)
+sugarPeano (F "0" []) = Just 0
+sugarPeano _ = Nothing
 
 prettyInfix :: Bool -> Ctx -> OpSpec -> Term -> Term -> Doc ann
 prettyInfix p c (OpSpec {opFunctor = fn, opSymbol = sym, opPrec = prec, opAssoc = assoc}) l r =
@@ -49,8 +51,8 @@ prettyInfix p c (OpSpec {opFunctor = fn, opSymbol = sym, opPrec = prec, opAssoc 
     then parens body
     else body
   where
-    lc = Ctx {ctxPrec = prec, ctxSide = SideLeft, ctxOp = fn}
-    rc = Ctx {ctxPrec = prec, ctxSide = SideRight, ctxOp = fn}
+    lc = Ctx prec SideLeft fn
+    rc = Ctx prec SideRight fn
 
     needsParens =
       p || case ctxSide c of
@@ -67,10 +69,28 @@ prettyInfix p c (OpSpec {opFunctor = fn, opSymbol = sym, opPrec = prec, opAssoc 
 
     body = prettyPrec False lc l <+> pretty sym <+> prettyPrec False rc r
 
+sugarList :: Term -> Maybe (Doc ann)
+sugarList (F "cons" [t, (F "cons" ts)]) = go ("[" <> prettyApplicativeTerm t) ts
+  where
+    go :: Doc ann -> [Term] -> Maybe (Doc ann)
+    go acc [t', F "cons" ts'] = go (acc <> "," <+> prettyApplicativeTerm t') ts'
+    go acc [t', F "nil" []] = Just (acc <> "," <+> prettyApplicativeTerm t' <> "]")
+    go _ _ = Nothing
+sugarList _ = Nothing
+
+sugarNil :: Term -> Maybe (Doc ann)
+sugarNil (F "nil" []) = Just "[]"
+sugarNil _ = Nothing
+
 prettyPrec :: Bool -> Ctx -> Term -> Doc ann
 prettyPrec p c t
-  | Just n <- fromPeano t = pretty n
+  -- Sugaring
+  | Just n <- sugarPeano t = pretty n
+  | Just d <- sugarList t = d
+  | Just d <- sugarNil t = d
+  -- Operator conversion
   | F f [x, y] <- t, Just op <- lookup f operatorsByFunctor = prettyInfix p c op x y
+  -- Juxtaposition processing
   | (h, []) <- flatten t = pretty h
   | (h, args) <- flatten t =
       parensIf p (hang 2 (sep (pretty h : map (prettyPrec True c) args)))
@@ -85,4 +105,4 @@ prettyPrec p c t
 prettyApplicativeTerm :: Term -> Doc ann
 prettyApplicativeTerm = prettyPrec False c0
   where
-    c0 = Ctx {ctxPrec = 0, ctxSide = SideNone, ctxOp = ""}
+    c0 = Ctx 0 SideNone ""

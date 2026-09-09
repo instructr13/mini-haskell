@@ -1,18 +1,18 @@
 (VAR w x y z xs ys zs)
 (RULES
-  nil      ++ ys -> ys ;
+  []       ++ ys -> ys ;
   (x : xs) ++ ys -> x : (xs ++ ys) ;
 
   0   <= y   -> true ;
   s x <= 0   -> false ;
   s x <= s y -> x <= y ;
 
-  qsort nil                   -> nil ;
-  qsort (x : xs)              -> split x xs nil nil ;
-  split w nil           ys zs -> qsort ys ++ (w : qsort zs) ;
+  qsort []                    -> [] ;
+  qsort (x : xs)              -> split x xs [] [] ;
+  split w []            ys zs -> qsort ys ++ (w : qsort zs) ;
   split w (x : xs)      ys zs -> if_split (w <= x) w x xs ys zs ;
   if_split true  w x xs ys zs -> split w xs ys (x : zs) ;
   if_split false w x xs ys zs -> split w xs (x : ys) zs ;
 
-  main -> qsort (2 : 0 : 4 : 1 : 3 : nil) ;
+  main -> qsort [2, 0, 4, 1, 3] ;
 )

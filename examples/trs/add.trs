@@ -2,5 +2,5 @@
 (RULES
   add(0, y) -> y
   add(s(x), y) -> s(add(x, y))
-  main -> add(2, 1)
+  main -> add(s(s(0)), s(0))
 )

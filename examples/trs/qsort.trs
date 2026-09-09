@@ -14,5 +14,5 @@
   if_split(true,  w, x, xs, ys, zs) -> split(w, xs, ys, cons(x, zs))
   if_split(false, w, x, xs, ys, zs) -> split(w, xs, cons(x, ys), zs)
 
-  main -> qsort(cons(2, cons(0, cons(4, cons(1, cons(3, nil))))))
+  main -> qsort(cons(s(s(0)), cons(0, cons(s(s(s(s(0)))), cons(s(0), cons(s(s(s(0))), nil))))))
 )

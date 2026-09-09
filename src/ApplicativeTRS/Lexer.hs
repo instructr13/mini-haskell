@@ -14,7 +14,7 @@ data Token
   | TKeyword String -- @VAR@, @RULES@
   | TOp String -- @->@
   | TNumLiteral Int -- Number literals
-  | TSpecial Char -- @();@
+  | TSpecial Char -- @( ) [ ] , ;@
   | TVOpenBlock
   | TVCloseBlock
   | TVEndOfStmt
@@ -85,7 +85,7 @@ ops =
     ]
 
 specialChars :: String
-specialChars = "();"
+specialChars = "()[],;"
 
 lexApplicativeTRS :: FilePath -> String -> Either ParseError [PosToken]
 lexApplicativeTRS = parse (sc *> many pTokenWithPos <* eof)
