@@ -46,11 +46,11 @@ spec = do
 
   describe "the lexical rule" $ do
     it "catches a constructor written in lower case, via the overlap it creates" $
-      "(RULES\n  add zero y -> y ;\n  add (Succ x) y -> Succ (add x y) ;\n  main -> add Zero Zero ;\n)"
-        `shouldReport` "overlapping rules"
+      "(RULES\n  plus zero y -> y ;\n  plus (Succ x) y -> Succ (plus x y) ;\n  main -> plus Zero Zero ;\n)"
+        `shouldReport` "ambiguous rules"
 
     it "catches a lower case constructor applied in a pattern" $
-      "(RULES\n  add (succ x) y -> Succ (add x y) ;\n  main -> add Zero Zero ;\n)"
+      "(RULES\n  plus (nat x) y -> Succ (plus x y) ;\n  main -> plus Zero Zero ;\n)"
         `shouldReport` "variable applied to arguments"
 
     it "needs no declaration for variables" $
