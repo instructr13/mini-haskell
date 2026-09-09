@@ -11,7 +11,8 @@ import Render (hPutDocLn)
 import Source
 import System.Exit (exitFailure)
 import System.IO
-import TRS
+import TRS.Pretty (prettyTRS)
+import TRS.Rewrite (nf)
 import Term
 
 main :: IO ()

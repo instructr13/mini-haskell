@@ -3,6 +3,7 @@
 module ApplicativeTRS.Pretty (prettyApplicativeTerm) where
 
 import Prettyprinter
+import TRS (appSpine)
 import Term
 
 data Assoc = AssocLeft | AssocNone | AssocRight deriving (Eq, Show)
@@ -90,6 +91,9 @@ prettyPrec p c t
   | Just d <- sugarNil t = d
   -- Operator conversion
   | F f [x, y] <- t, Just op <- lookup f operatorsByFunctor = prettyInfix p c op x y
+  -- An application whose head is not a symbol yet is still juxtaposition
+  | Just (h, args) <- appSpine t =
+      parensIf p (hang 2 (sep (prettyPrec True c h : map (prettyPrec True c) args)))
   -- Juxtaposition processing
   | (h, []) <- flatten t = pretty h
   | (h, args) <- flatten t =

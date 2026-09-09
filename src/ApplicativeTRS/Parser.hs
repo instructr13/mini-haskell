@@ -15,7 +15,10 @@ import Util
 -- See op of ApplicativeTRS.Lexer for definition
 operatorTable :: [[Operator Parser SExpr]]
 operatorTable =
-  [ [ InfixL (mkBinOp "add" <$ op "+")
+  [ [ InfixL (mkBinOp "mul" <$ op "*")
+    ],
+    [ InfixL (mkBinOp "add" <$ op "+"),
+      InfixL (mkBinOp "sub" <$ op "-")
     ],
     [ InfixR (mkBinOp "cons" <$ op ":"),
       InfixR (mkBinOp "append" <$ op "++")

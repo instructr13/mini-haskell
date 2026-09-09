@@ -62,8 +62,12 @@ ops =
 
       --- General operators
 
+      -- Priority 7
+      "*", -- mul (left)
+
       -- Priority 6
-      "+", -- plus (left)
+      "+", -- add (left)
+      "-", -- sub (left)
 
       -- Priority 5
       ":", -- cons (right)

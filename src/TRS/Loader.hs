@@ -26,7 +26,10 @@ convert xs trs = substituteTRS trs sigma
 
 fromViolation :: Violation -> TRSError
 fromViolation v = case v of
-  RootOverlap _ _ -> error "BUG: root overlap (possibly implementation mistake of match)"
+  RootOverlap r1 r2 ->
+    Invalid ("overlapping rules: " ++ showRule r1 ++ " overlaps " ++ showRule r2)
+  LhsIsApplication r ->
+    Invalid ("variable applied to arguments in the left-hand side of " ++ showRule r)
   NonLeftLinear r x ->
     Invalid ("non-linear pattern (" ++ x ++ ") in " ++ showRule r)
   UnboundRhsVar _ x -> UnknownVariable x

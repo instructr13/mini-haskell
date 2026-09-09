@@ -42,7 +42,10 @@ library
       TRS.Error
       TRS.Lexer
       TRS.Loader
+      TRS.Match
       TRS.Parser
+      TRS.Pretty
+      TRS.Rewrite
       TRS.Syntax
       TRS.TokenStream
       Util

@@ -53,10 +53,3 @@ parens = between (special '(') (special ')')
 
 squareBrackets :: Parser a -> Parser a
 squareBrackets = between (special '[') (special ']')
-
--- SEApp (SEApp (f a)) b ==> (f, [a,b])
-sSpine :: SExpr -> (String, [SExpr])
-sSpine = go []
-  where
-    go acc (SEApp f x) = go (x : acc) f
-    go acc (SEIdent n) = (n, acc)

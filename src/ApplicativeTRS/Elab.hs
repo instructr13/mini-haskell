@@ -4,12 +4,13 @@ import ApplicativeTRS.Syntax
 import TRS
 import Term
 
+-- Lower a surface expression to a term.
 elab :: [String] -> SExpr -> Term
 elab vars = go []
   where
     go acc (SEApp f x) = go (go [] x : acc) f
     go acc (SEIdent x)
-      | x `elem` vars = apps (V x) acc
+      | x `elem` vars = V x `applyTo` acc
       | otherwise = F x acc
 
 elabRule :: [String] -> AppRule -> Rule

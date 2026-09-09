@@ -3,10 +3,12 @@ module TRS.Check (module TRS.Check) where
 import Data.List (nub, (\\))
 import Data.Maybe (isJust)
 import TRS
+import TRS.Match (unify)
 import Term
 
 data Violation
   = LhsIsVariable Rule
+  | LhsIsApplication Rule
   | UnboundRhsVar Rule String
   | NonLeftLinear Rule String
   | NotConstructorSystem Rule
@@ -16,6 +18,17 @@ data Violation
 checkLhsIsVariable :: Rule -> [Violation]
 checkLhsIsVariable rule@(V _, _) = [LhsIsVariable rule]
 checkLhsIsVariable _ = []
+
+--   ok:  map f (x : xs) -> ...
+--   bad: map (f x) ys   -> ...
+--   bad: f x            -> ...   (f declared in (VAR ...))
+checkLhsIsApplication :: Rule -> [Violation]
+checkLhsIsApplication rule@(l, _) = [LhsIsApplication rule | containsApp l]
+  where
+    containsApp :: Term -> Bool
+    containsApp (_ :@ _) = True
+    containsApp (F _ ts) = any containsApp ts
+    containsApp (V _) = False
 
 checkUnboundRhsVar :: Rule -> [Violation]
 checkUnboundRhsVar rule@(l, r) = [UnboundRhsVar rule x | x <- variables r \\ variables l]
@@ -46,9 +59,14 @@ checkRootOverlap trs =
   ]
 
 checkRule :: [String] -> Rule -> [Violation]
-checkRule syms rule = checkLhsIsVariable rule ++ checkUnboundRhsVar rule ++ checkNonLeftLinear rule ++ checkNotConstructorSystem syms rule
+checkRule syms rule =
+  checkLhsIsVariable rule
+    ++ checkLhsIsApplication rule
+    ++ checkUnboundRhsVar rule
+    ++ checkNonLeftLinear rule
+    ++ checkNotConstructorSystem syms rule
 
 checkTRS :: TRS -> [Violation]
-checkTRS trs = checkRootOverlap trs ++ concat [checkRule syms rule | rule <- trs]
+checkTRS trs = concat [checkRule syms rule | rule <- trs] ++ checkRootOverlap trs
   where
     syms = definedSymbols trs
