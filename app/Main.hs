@@ -12,7 +12,7 @@ import Source
 import System.Exit (exitFailure)
 import System.IO
 import TRS.Pretty (prettyTRS)
-import TRS.Rewrite (nf)
+import TRS.Rewrite (nfBounded)
 import Term
 
 main :: IO ()
@@ -38,9 +38,13 @@ runMain args = do
           Nothing ->
             die
               (errorDoc ("no rule for main in " <+> pretty f))
-          Just mainF -> do
-            hPutDocLn stdout mempty
-            hPutDocLn stdout ("-->" <+> prettyTerm (nf trs mainF))
+          Just mainF -> case (nfBounded 10000 trs mainF) of
+            Just t -> do
+              hPutDocLn stdout mempty
+              hPutDocLn stdout ("-->" <+> prettyTerm t)
+            Nothing ->
+              die
+                (errorDoc "maximum calculation limit exceeded")
 
 die :: Doc ann -> IO ()
 die d = hPutDocLn stderr d >> exitFailure

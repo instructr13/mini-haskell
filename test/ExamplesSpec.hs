@@ -1,6 +1,6 @@
 module ExamplesSpec (spec) where
 
-import ApplicativeTRS.Pretty (prettyApplicativeTerm)
+import HS.Pretty (prettyTerm)
 import Prettyprinter (defaultLayoutOptions, layoutPretty)
 import Prettyprinter.Render.String (renderString)
 import Source (compileSrc)
@@ -17,7 +17,7 @@ normalFormOfMain file = do
     Left _ -> pure "<load error>"
     Right trs -> case lookup (F "main" []) trs of
       Nothing -> pure "<no main>"
-      Just t -> pure (renderString (layoutPretty defaultLayoutOptions (prettyApplicativeTerm (nf trs t))))
+      Just t -> pure (renderString (layoutPretty defaultLayoutOptions (prettyTerm (nf trs t))))
 
 reduces :: FilePath -> String -> Spec
 reduces file expected =

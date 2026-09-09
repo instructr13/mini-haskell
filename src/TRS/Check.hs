@@ -1,9 +1,9 @@
-module TRS.Check (module TRS.Check) where
+module TRS.Check (Violation (..), checkRule, checkTRS) where
 
 import Data.List (nub, (\\))
-import Data.Maybe (isJust)
 import TRS
 import TRS.Match (unify)
+import TRS.Rewrite (nfBounded)
 import Term
 
 data Violation
@@ -12,16 +12,17 @@ data Violation
   | UnboundRhsVar Rule String
   | NonLeftLinear Rule String
   | NotConstructorSystem Rule
-  | RootOverlap Rule Rule
+  | AmbiguousOverlap Rule Rule Term Term
+  | UnresolvedOverlap Rule Rule Term Term
   deriving (Show, Eq)
 
 checkLhsIsVariable :: Rule -> [Violation]
 checkLhsIsVariable rule@(V _, _) = [LhsIsVariable rule]
 checkLhsIsVariable _ = []
 
---   ok:  map f (x : xs) -> ...
---   bad: map (f x) ys   -> ...
---   bad: f x            -> ...   (f declared in (VAR ...))
+-- ok:  map f (x : xs) -> ...
+-- bad: map (f x) ys   -> ...
+-- bad: f x            -> ...   (f declared in (VAR ...))
 checkLhsIsApplication :: Rule -> [Violation]
 checkLhsIsApplication rule@(l, _) = [LhsIsApplication rule | containsApp l]
   where
@@ -40,33 +41,53 @@ checkNonLeftLinear rule@(l, _) = [NonLeftLinear rule x | x <- nub (variablesWith
     variablesWithDups (V x) = [x]
     variablesWithDups (F _ ts) = [x | t <- ts, x <- variablesWithDups t]
 
-checkNotConstructorSystem :: [String] -> Rule -> [Violation]
-checkNotConstructorSystem _ rule@(V _, _) = [NotConstructorSystem rule]
-checkNotConstructorSystem syms rule@(F _ ts, _) = if any containsDefined ts then [NotConstructorSystem rule] else []
-  where
-    -- Is any of the specified symbols D in the term?
-    containsDefined :: Term -> Bool
-    containsDefined (V _) = False
-    containsDefined (F f ts') = (f `elem` syms) || any containsDefined ts'
-
-checkRootOverlap :: TRS -> [Violation]
-checkRootOverlap trs =
-  [ RootOverlap rule1 rule2
-  | (rule1@(l1, _), i) <- zip trs [0 :: Integer ..],
-    (rule2@(l2, _), j) <- zip trs [0 :: Integer ..],
-    i < j,
-    isJust (unify l1 (renameTerm "_rn" l2))
+-- l1|_p sigma = l2 sigma  =>  <(l1[r2]_p) sigma, r1 sigma>
+criticalPairs :: Rule -> Rule -> [(Position, Term, Term)]
+criticalPairs (l1, r1) (l20, r20) =
+  [ (p, substitute l1' sigma, substitute r1 sigma)
+  | p <- positions l1,
+    Just u@(F _ _) <- [subTermAt l1 p],
+    Just sigma <- [unify u l2],
+    Just l1' <- [replace l1 r2 p]
   ]
+  where
+    l2 = renameTerm "_cp" l20
+    r2 = renameTerm "_cp" r20
 
-checkRule :: [String] -> Rule -> [Violation]
-checkRule syms rule =
+-- How far a critical pair is normalised before giving up on it.
+overlapStepLimit :: Int
+overlapStepLimit = 1000
+
+-- ok:  xs ++ [] -> xs  overlaps  (x : xs) ++ ys -> x : (xs ++ ys)
+--      but ((x : xs) ++ []) reaches (x : xs) either way
+-- bad: f x -> True  overlaps  f 0 -> False
+checkCriticalPairs :: TRS -> [Violation]
+checkCriticalPairs trs =
+  [ v
+  | (rule1, i) <- indexed,
+    (rule2, j) <- indexed,
+    (p, s, t) <- criticalPairs rule1 rule2,
+    -- Every rule trivially overlaps itself at the root, and a root overlap of
+    -- two rules is the same pair seen twice.
+    not (null p) || i < j,
+    v <- verdict rule1 rule2 s t
+  ]
+  where
+    indexed = zip trs [0 :: Integer ..]
+
+    verdict rule1 rule2 s t =
+      case (nfBounded overlapStepLimit trs s, nfBounded overlapStepLimit trs t) of
+        (Just s', Just t')
+          | s' == t' -> []
+          | otherwise -> [AmbiguousOverlap rule1 rule2 s' t']
+        _ -> [UnresolvedOverlap rule1 rule2 s t]
+
+checkRule :: Rule -> [Violation]
+checkRule rule =
   checkLhsIsVariable rule
     ++ checkLhsIsApplication rule
     ++ checkUnboundRhsVar rule
     ++ checkNonLeftLinear rule
-    ++ checkNotConstructorSystem syms rule
 
 checkTRS :: TRS -> [Violation]
-checkTRS trs = concat [checkRule syms rule | rule <- trs] ++ checkRootOverlap trs
-  where
-    syms = definedSymbols trs
+checkTRS trs = concat [checkRule rule | rule <- trs] ++ checkCriticalPairs trs

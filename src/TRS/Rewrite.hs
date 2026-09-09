@@ -57,6 +57,17 @@ nfWith f trs t0 = go t0
       Just t' -> go t'
       _ -> t
 
+-- nf with the limit.
+nfBounded :: Int -> TRS -> Term -> Maybe Term
+nfBounded limit trs0 = go limit
+  where
+    trs = indexTRS trs0
+    go !k t
+      | k <= 0 = Nothing
+      | otherwise = case rewrite trs t of
+          Just t' -> go (k - 1) t'
+          Nothing -> Just t
+
 -- The index is built once here, not once per rewrite step.
 nf :: TRS -> Term -> Term
 nf = nfWith rewrite . indexTRS

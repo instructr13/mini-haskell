@@ -26,8 +26,29 @@ convert xs trs = substituteTRS trs sigma
 
 fromViolation :: Violation -> TRSError
 fromViolation v = case v of
-  RootOverlap r1 r2 ->
-    Invalid ("overlapping rules: " ++ showRule r1 ++ " overlaps " ++ showRule r2)
+  AmbiguousOverlap r1 r2 s t ->
+    Invalid
+      ( "ambiguous rules: "
+          ++ showRule r1
+          ++ " overlaps "
+          ++ showRule r2
+          ++ ", and the overlap reduces to both "
+          ++ show s
+          ++ " and "
+          ++ show t
+      )
+  UnresolvedOverlap r1 r2 s t ->
+    Invalid
+      ( "overlapping rules: "
+          ++ showRule r1
+          ++ " overlaps "
+          ++ showRule r2
+          ++ ", and neither "
+          ++ show s
+          ++ " nor "
+          ++ show t
+          ++ " reached a normal form (is the system terminating?)"
+      )
   LhsIsApplication r ->
     Invalid ("variable applied to arguments in the left-hand side of " ++ showRule r)
   NonLeftLinear r x ->

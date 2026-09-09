@@ -42,7 +42,6 @@ library
       HS.Desugar.List
       HS.Desugar.Peano
       HS.Elab
-      HS.InterOp
       HS.Layout
       HS.Lexer
       HS.Loader

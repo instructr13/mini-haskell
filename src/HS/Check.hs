@@ -10,10 +10,6 @@ data DeclViolation
   | UnsaturatedConstructor String String Int Int
   deriving (Show, Eq)
 
--- Every equation of a function elaborates to one rule rooted at that function,
--- so all of them have to take the same number of arguments. TRS.Check cannot
--- see this: rules of differing arity simply never unify.
---
 -- bad: length Nil        = 0
 --      length (x : xs) y = 1 + length xs y
 checkInconsistentArity :: Module -> [DeclViolation]
@@ -24,8 +20,6 @@ checkInconsistentArity m =
     length arities > 1
   ]
 
--- Every constructor pattern occurring in a pattern, with the number of
--- arguments it is matched against.
 conPats :: Pat -> [(String, Int)]
 conPats (PVar _) = []
 conPats (PCon c ps) = (c, length ps) : concat [conPats p | p <- ps]
@@ -47,7 +41,7 @@ fromDeclViolation :: DeclViolation -> TRSError
 fromDeclViolation v = case v of
   InconsistentArity f arities ->
     Invalid
-      ( "equations for "
+      ( "rules for "
           ++ f
           ++ " have different numbers of arguments ("
           ++ intercalate ", " (map show arities)

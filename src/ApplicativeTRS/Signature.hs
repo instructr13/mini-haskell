@@ -1,3 +1,5 @@
+{-# LANGUAGE InstanceSigs #-}
+
 module ApplicativeTRS.Signature (module ApplicativeTRS.Signature) where
 
 import ApplicativeTRS.Syntax
@@ -9,6 +11,13 @@ data Signature = Signature
   { sigCons :: [(String, Int)],
     sigDefined :: [String]
   }
+
+instance Semigroup Signature where
+  Signature c1 d1 <> Signature c2 d2 = Signature (c1 <> c2) (d1 <> d2)
+
+instance Monoid Signature where
+  mempty :: Signature
+  mempty = Signature [] []
 
 classify :: Signature -> String -> SymKind
 classify sig x
