@@ -13,7 +13,9 @@ import Util
 -- See op of ApplicativeTRS.Lexer for definition
 operatorTable :: [[Operator Parser SExpr]]
 operatorTable =
-  [ [ InfixL (mkBinOp "mul" <$ op "*")
+  [ [ InfixL (mkComposition <$ op ".")
+    ],
+    [ InfixL (mkBinOp "mul" <$ op "*")
     ],
     [ InfixL (mkBinOp "add" <$ op "+"),
       InfixL (mkBinOp "sub" <$ op "-")
@@ -37,6 +39,9 @@ operatorTable =
   where
     mkBinOp :: String -> SExpr -> SExpr -> SExpr
     mkBinOp name l r = SEApp (SEApp (SEIdent name) l) r
+
+    mkComposition :: SExpr -> SExpr -> SExpr
+    mkComposition l r = SEApp l r
 
 parseApplicativeTRS :: FilePath -> String -> Either TRSError AppModule
 parseApplicativeTRS file src = do

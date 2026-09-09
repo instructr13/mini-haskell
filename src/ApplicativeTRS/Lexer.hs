@@ -64,6 +64,9 @@ ops =
 
       --- General operators
 
+      -- Priority 9
+      ".", -- Function composition (right)
+
       -- Priority 7
       "*", -- mul (left)
 
