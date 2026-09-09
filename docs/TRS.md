@@ -3,11 +3,11 @@
 ## TRS Format in EBNF
 
 ```bnf
-sectionSet = varSec? rulesSec
+sectionSet ::= varSec? rulesSec
 
-varSec = "(" "VAR" x* ")"
+varSec ::= "(" "VAR" x* ")"
 
-rulesSec = "(" "RULES" rule* ")" ";"?
+rulesSec ::= "(" "RULES" rule* ")" ";"?
 
 # Rule
 rule ::= t "->" t
@@ -24,22 +24,50 @@ t ::= x | f ("(" ts ")")?
 Applies functions with the [Juxtaposition Notation](https://en.wikipedia.org/wiki/Function_composition).
 
 ```bnf
-sectionSet = dataSec* rulesSec?
+sectionSet ::= dataSec* rulesSec?
 
 # Data declaration (C is an upper case identifier, x a lower case one)
-dataSec = "(" "DATA" C x* "=" conDecl ("|" conDecl)* ")"
+dataSec ::= "(" "DATA" C x* "=" conDecl ("|" conDecl)* ")"
 
-conDecl = C typeAtom*
+conDecl ::= C typeAtom*
 
-typeAtom = C | x | "(" C typeAtom* ")"
+typeAtom ::= C | x | "(" C typeAtom* ")"
 
-rulesSec = "(" "RULES" rule* ")"
+rulesSec ::= "(" "RULES" rule* ")"
 
 # Rule
 rule ::= t "->" t ";"
 
 # Applicative term
 t ::= s+ | t binOp t
+
+# Simple expression
+s ::= ident | numLiteral | listLiteral | "(" t ")"
+
+numLiteral  ::= digit+                # desugars to Zero / Succ
+listLiteral ::= "[" (t ("," t)*)? "]" # desugars to Nil / Cons
+```
+
+## (Simplified) Haskell in EBNF
+
+Simplified Haskell without any type information or special expressions.
+
+```bnf
+module ::= decl*
+
+# Any declaration
+# - Data declaration (C is an upper case ident, x a lower case one)
+# - Rule declaration
+decl ::= "data" C x* "=" conDecl ("|" conDecl)*
+         | x pat* '=' expr
+
+# Constructors
+conDecl  ::= C typeAtom*
+typeAtom ::= ident | "(" typeAtom* ")"
+
+# Patterns & Terms
+pat ::= ident | "(" C pat* ")"
+t   ::= s+ | t binOp t
 
 # Simple expression
 s ::= ident | numLiteral | listLiteral | "(" t ")"
