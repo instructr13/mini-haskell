@@ -12,7 +12,6 @@ data Token
   = TIdent String -- @x@
   | TKeyword String -- @VAR@, @RULES@
   | TOp String -- @->@
-  | TNumLiteral Int -- Number literals
   | TSpecial Char -- @( ) , ;@
   | TVEndOfStmt
   deriving (Eq, Ord, Show)
@@ -21,7 +20,6 @@ showToken :: Token -> String
 showToken (TIdent s) = s
 showToken (TKeyword s) = s
 showToken (TOp s) = s
-showToken (TNumLiteral n) = show n
 showToken (TSpecial c) = [c]
 showToken TVEndOfStmt = "\n"
 
@@ -70,28 +68,18 @@ pToken =
   choice
     [ pKeywordOrIdent,
       pOp,
-      pLiteral,
       pSpecial
     ]
     <?> "token"
 
 pKeywordOrIdent :: Parser Token
 pKeywordOrIdent = try $ do
-  first <- letterChar
-  rest <- many (alphaNumChar <|> char '_')
-
-  let word = first : rest
+  word <- some (alphaNumChar <|> char '_')
 
   pure (if word `elem` keywords then TKeyword word else TIdent word)
 
 pOp :: Parser Token
 pOp = TOp <$> choice (map string ops)
-
-pLiteral :: Parser Token
-pLiteral =
-  choice
-    [ TNumLiteral <$> L.decimal
-    ]
 
 pSpecial :: Parser Token
 pSpecial = TSpecial <$> oneOf specialChars

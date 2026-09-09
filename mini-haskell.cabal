@@ -41,7 +41,6 @@ library
       TRS.Lexer
       TRS.Loader
       TRS.Parser
-      TRS.Special.Peano
       TRS.Syntax
       TRS.TokenStream
       Util

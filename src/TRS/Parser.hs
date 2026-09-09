@@ -7,7 +7,6 @@ import Data.Void
 import TRS
 import TRS.Error
 import TRS.Lexer
-import TRS.Special.Peano (toPeano)
 import TRS.Syntax
 import TRS.TokenStream
 import Term
@@ -46,13 +45,6 @@ ident = satisfyT check <?> "identifier"
     check (TIdent s) = Just s
     check _ = Nothing
 
-numLiteral :: Parser Int
-numLiteral = satisfyT check <?> "numbers"
-  where
-    check :: Token -> Maybe Int
-    check (TNumLiteral n) = Just n
-    check _ = Nothing
-
 keyword :: String -> Parser ()
 keyword s = tok (TKeyword s)
 
@@ -77,20 +69,14 @@ pVarSec = parens $ do
 
   nub <$> many ident
 
-pPeanoNum :: Parser Term
-pPeanoNum = toPeano <$> numLiteral
-
-pTermIdent :: [String] -> Parser Term
-pTermIdent vars = do
+pTerm :: [String] -> Parser Term
+pTerm vars = do
   f <- ident
   ts <-
     fromMaybe []
       <$> (optional (parens $ sepBy1 (pTerm vars) (special ',')))
 
   pure (if f `elem` vars && null ts then V f else F f ts)
-
-pTerm :: [String] -> Parser Term
-pTerm vars = pPeanoNum <|> pTermIdent vars
 
 pRule :: [String] -> Parser Rule
 pRule vars = do
