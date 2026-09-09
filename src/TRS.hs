@@ -4,29 +4,10 @@
 
 module TRS (module TRS) where
 
-import Data.List (intercalate, isPrefixOf, nub, nubBy, (!?))
+import Data.List (isPrefixOf, nub, nubBy, (!?))
 import Data.Maybe
 import Prettyprinter
-
-data Term = V String | F String [Term] deriving (Eq)
-
-instance Pretty Term where
-  pretty = go False
-    where
-      go :: Bool -> Term -> Doc ann
-      go _ t | (h, []) <- flatten t = pretty h
-      go p t
-        | (h, args) <- flatten t =
-            parensIf p (hang 2 (sep (pretty h : map (go True) args)))
-
-      parensIf :: Bool -> Doc ann -> Doc ann
-      parensIf b = if b then parens else id
-
-      flatten :: Term -> (String, [Term])
-      flatten = go' []
-        where
-          go' acc (V x) = (x, acc)
-          go' acc (F f bs) = (f, bs ++ acc)
+import Term
 
 type Position = [Int]
 
@@ -37,10 +18,6 @@ type Rule = (Term, Term)
 type TRS = [Rule]
 
 type Strategy = TRS -> Term -> Maybe Term
-
-instance Show Term where
-  show (V x) = x
-  show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
 
 -- Special function for function application operator (juxtaposition notation)
 appName :: String
@@ -226,5 +203,12 @@ nf trs t = nfWith rewrite trs t
 showRule :: Rule -> String
 showRule (l, r) = show l ++ " -> " ++ show r
 
+prettyRule :: Rule -> Doc ann
+prettyRule (l, r) =
+  group (pretty l <+> "->" <> nest 2 (line <> pretty r))
+
 showTRS :: TRS -> String
 showTRS trs = unlines [showRule rule | rule <- trs]
+
+prettyTRS :: TRS -> Doc ann
+prettyTRS trs = vsep (map prettyRule trs)

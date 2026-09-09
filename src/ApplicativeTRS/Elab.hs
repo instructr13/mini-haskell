@@ -2,6 +2,7 @@ module ApplicativeTRS.Elab (elab, elabRule) where
 
 import ApplicativeTRS.Syntax
 import TRS
+import Term
 
 elab :: [String] -> SExpr -> Term
 elab vars = go []

@@ -7,6 +7,7 @@ import TRS.Check (Violation (..), checkTRS)
 import TRS.Error
 import TRS.Parser (parseTRS)
 import TRS.Syntax (SectionSet (..))
+import Term
 
 variablesInTRS :: TRS -> [String]
 variablesInTRS trs =

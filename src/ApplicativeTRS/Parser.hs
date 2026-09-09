@@ -1,6 +1,7 @@
 module ApplicativeTRS.Parser (parseApplicativeTRS) where
 
 import ApplicativeTRS.Lexer
+import ApplicativeTRS.Special.Peano (toPeanoSExpr)
 import ApplicativeTRS.Syntax
 import ApplicativeTRS.TokenStream
 import Data.List (nub)
@@ -43,6 +44,13 @@ ident = satisfyT check <?> "identifier"
     check (TIdent s') = Just s'
     check _ = Nothing
 
+numLiteral :: Parser Int
+numLiteral = satisfyT check <?> "numbers"
+  where
+    check :: Token -> Maybe Int
+    check (TNumLiteral n) = Just n
+    check _ = Nothing
+
 keyword :: String -> Parser ()
 keyword s = tok (TKeyword s)
 
@@ -67,8 +75,11 @@ pVarSec = parens $ do
 
   nub <$> many ident
 
+pPeanoNum :: Parser SExpr
+pPeanoNum = toPeanoSExpr <$> numLiteral
+
 pSimpleExpression :: Parser SExpr
-pSimpleExpression = SEIdent <$> ident <|> parens pTerm
+pSimpleExpression = SEIdent <$> ident <|> pPeanoNum <|> parens pTerm
 
 pTerm :: Parser SExpr
 pTerm = foldl1 SEApp <$> some pSimpleExpression

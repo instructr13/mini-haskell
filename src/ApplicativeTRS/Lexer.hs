@@ -4,6 +4,7 @@ import Error
 import Lexer
 import Text.Megaparsec hiding (ParseError, Token)
 import Text.Megaparsec.Char
+import qualified Text.Megaparsec.Char.Lexer as L
 
 -- Refer docs/TRS.md for EBNF
 
@@ -11,6 +12,7 @@ data Token
   = TIdent String -- @x@
   | TKeyword String -- @VAR@, @RULES@
   | TOp String -- @->@
+  | TNumLiteral Int -- Number literals
   | TSpecial Char -- @();@
   | TVOpenBlock
   | TVCloseBlock
@@ -21,6 +23,7 @@ showToken :: Token -> String
 showToken (TIdent s) = s
 showToken (TKeyword s) = s
 showToken (TOp s) = s
+showToken (TNumLiteral n) = show n
 showToken (TSpecial c) = [c]
 showToken TVOpenBlock = "("
 showToken TVCloseBlock = ")"
@@ -40,6 +43,12 @@ unvirtual TVOpenBlock = TSpecial '('
 unvirtual TVCloseBlock = TSpecial ')'
 unvirtual TVEndOfStmt = TSpecial ';'
 unvirtual t = t
+
+sc :: Parser ()
+sc = L.space space1 (L.skipLineComment "#") empty
+
+lexeme :: Parser a -> Parser a
+lexeme = L.lexeme sc
 
 keywords :: [String]
 keywords = ["VAR", "RULES"]
@@ -67,18 +76,28 @@ pToken =
   choice
     [ pKeywordOrIdent,
       pOp,
+      pLiteral,
       pSpecial
     ]
     <?> "token"
 
 pKeywordOrIdent :: Parser Token
 pKeywordOrIdent = try $ do
-  word <- some (alphaNumChar <|> char '_')
+  first <- letterChar
+  rest <- many (alphaNumChar <|> char '_')
+
+  let word = first : rest
 
   pure (if word `elem` keywords then TKeyword word else TIdent word)
 
 pOp :: Parser Token
 pOp = TOp <$> choice (map string ops)
+
+pLiteral :: Parser Token
+pLiteral =
+  choice
+    [ TNumLiteral <$> L.decimal
+    ]
 
 pSpecial :: Parser Token
 pSpecial = TSpecial <$> oneOf specialChars

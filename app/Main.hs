@@ -11,7 +11,7 @@ import Source
 import System.Exit (exitFailure)
 import System.IO
 import TRS
-import TRS.Pretty
+import Term
 
 main :: IO ()
 main = execParser argParserInfo >>= runMain

@@ -7,8 +7,10 @@ import Data.Void
 import TRS
 import TRS.Error
 import TRS.Lexer
+import TRS.Special.Peano (toPeano)
 import TRS.Syntax
 import TRS.TokenStream
+import Term
 import Text.Megaparsec hiding (Token)
 import Util
 
@@ -41,7 +43,14 @@ ident :: Parser String
 ident = satisfyT check <?> "identifier"
   where
     check :: Token -> Maybe String
-    check (TIdent s') = Just s'
+    check (TIdent s) = Just s
+    check _ = Nothing
+
+numLiteral :: Parser Int
+numLiteral = satisfyT check <?> "numbers"
+  where
+    check :: Token -> Maybe Int
+    check (TNumLiteral n) = Just n
     check _ = Nothing
 
 keyword :: String -> Parser ()
@@ -68,14 +77,20 @@ pVarSec = parens $ do
 
   nub <$> many ident
 
-pTerm :: [String] -> Parser Term
-pTerm vars = do
+pPeanoNum :: Parser Term
+pPeanoNum = toPeano <$> numLiteral
+
+pTermIdent :: [String] -> Parser Term
+pTermIdent vars = do
   f <- ident
   ts <-
     fromMaybe []
       <$> (optional (parens $ sepBy1 (pTerm vars) (special ',')))
 
   pure (if f `elem` vars && null ts then V f else F f ts)
+
+pTerm :: [String] -> Parser Term
+pTerm vars = pPeanoNum <|> pTermIdent vars
 
 pRule :: [String] -> Parser Rule
 pRule vars = do

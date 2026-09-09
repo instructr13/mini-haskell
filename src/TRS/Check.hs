@@ -3,6 +3,7 @@ module TRS.Check (module TRS.Check) where
 import Data.List (nub, (\\))
 import Data.Maybe (isJust)
 import TRS
+import Term
 
 data Violation
   = LhsIsVariable Rule
