@@ -1,7 +1,6 @@
-(VAR f x xs y)
 (RULES
-  0   + y -> y ;
-  s x + y -> s (x + y) ;
+  0      + y -> y ;
+  Succ x + y -> Succ (x + y) ;
 
   map f []       -> [] ;
   map f (x : xs) -> f x : map f xs ;

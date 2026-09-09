@@ -5,8 +5,6 @@ import ApplicativeTRS.Lexer
 import ApplicativeTRS.Syntax
 import ApplicativeTRS.TokenStream
 import Control.Monad.Combinators.Expr
-import Data.List (nub)
-import Data.Maybe (fromMaybe)
 import Data.Void
 import TRS.Error
 import Text.Megaparsec hiding (Token)
@@ -20,7 +18,7 @@ operatorTable =
     [ InfixL (mkBinOp "add" <$ op "+"),
       InfixL (mkBinOp "sub" <$ op "-")
     ],
-    [ InfixR (mkBinOp "cons" <$ op ":"),
+    [ InfixR (mkBinOp "Cons" <$ op ":"), -- : is only the constructor "Cons"
       InfixR (mkBinOp "append" <$ op "++")
     ],
     [ InfixN (mkBinOp "eq" <$ op "=="),
@@ -40,7 +38,7 @@ operatorTable =
     mkBinOp :: String -> SExpr -> SExpr -> SExpr
     mkBinOp name l r = SEApp (SEApp (SEIdent name) l) r
 
-parseApplicativeTRS :: FilePath -> String -> Either TRSError AppSectionSet
+parseApplicativeTRS :: FilePath -> String -> Either TRSError AppModule
 parseApplicativeTRS file src = do
   toks <- mapLeft syntaxError (lexApplicativeTRS file src)
 
@@ -49,16 +47,10 @@ parseApplicativeTRS file src = do
 syntaxError :: (TraversableStream s, VisualStream s) => ParseErrorBundle s Void -> TRSError
 syntaxError e = SyntaxError (bundleErrorPos e) (errorBundlePretty e)
 
-parseTokens :: FilePath -> String -> [PosToken] -> Either TRSError AppSectionSet
+parseTokens :: FilePath -> String -> [PosToken] -> Either TRSError AppModule
 parseTokens file src toks = mapLeft syntaxError sectionSet
   where
     sectionSet = parse (pSectionSet <* eof) file (tokenStream src toks)
-
-pVarSec :: Parser [String]
-pVarSec = parens $ do
-  _ <- keyword "VAR"
-
-  nub <$> many ident
 
 pSimpleExpression :: Parser SExpr
 pSimpleExpression = SEIdent <$> ident <|> pDesugarExpression pTerm <|> parens pTerm
@@ -78,15 +70,37 @@ pRule = do
 
   pure (lhs, rhs)
 
+pTypeAtom :: Parser ()
+pTypeAtom =
+  ()
+    <$ conIdent
+      <|> ()
+    <$ varIdent
+      <|> ()
+    <$ parens (conIdent *> many pTypeAtom)
+
+pConDecl :: Parser ConDecl
+pConDecl = ConDecl <$> conIdent <*> (length <$> many pTypeAtom)
+
+pDataSec :: Parser DataDecl
+pDataSec = parens $ do
+  _ <- keyword "DATA"
+
+  name <- conIdent
+  _ <- many varIdent
+  _ <- op "="
+
+  DataDecl name <$> sepBy1 pConDecl (op "|")
+
 pRulesSec :: Parser [AppRule]
 pRulesSec = parens $ do
   _ <- keyword "RULES"
 
   itemsOf pRule
 
-pSectionSet :: Parser AppSectionSet
+pSectionSet :: Parser AppModule
 pSectionSet = do
-  vars <- fromMaybe [] <$> optional pVarSec
-  rs <- pRulesSec
+  ds <- many (try pDataSec)
+  rs <- option [] pRulesSec
 
-  pure (AppSectionSet {ssVars = vars, ssRules = rs})
+  pure (AppModule {amData = ds, amRules = rs})

@@ -11,7 +11,7 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 data Token
   = TIdent String -- @x@
-  | TKeyword String -- @VAR@, @RULES@
+  | TKeyword String -- @RULES@, @DATA@
   | TOp String -- @->@
   | TNumLiteral Int -- Number literals
   | TSpecial Char -- @( ) [ ] , ;@
@@ -52,13 +52,15 @@ lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
 keywords :: [String]
-keywords = ["VAR", "RULES"]
+keywords = ["RULES", "DATA"]
 
 ops :: [String]
 ops =
   sortBy
     (flip compare)
-    [ "->", -- Rule assoc operator
+    [ "->", -- Rule assoc
+      "=", -- Data declaration
+      "|", -- Data alternative
 
       --- General operators
 

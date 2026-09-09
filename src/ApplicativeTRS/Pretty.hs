@@ -25,8 +25,10 @@ data OpSpec = OpSpec
 
 operators :: [OpSpec]
 operators =
-  [ OpSpec "add" "+" 6 AssocLeft,
-    OpSpec "cons" ":" 5 AssocRight,
+  [ OpSpec "mul" "*" 7 AssocLeft,
+    OpSpec "add" "+" 6 AssocLeft,
+    OpSpec "sub" "-" 6 AssocLeft,
+    OpSpec "Cons" ":" 5 AssocRight,
     OpSpec "append" "++" 5 AssocRight,
     OpSpec "eq" "==" 4 AssocNone,
     OpSpec "neq" "/=" 4 AssocNone,
@@ -42,8 +44,8 @@ operatorsByFunctor :: [(String, OpSpec)]
 operatorsByFunctor = [(opFunctor o, o) | o <- operators]
 
 sugarPeano :: Term -> Maybe Int
-sugarPeano (F "s" [f]) = fmap (+ 1) (sugarPeano f)
-sugarPeano (F "0" []) = Just 0
+sugarPeano (F "Succ" [f]) = fmap (+ 1) (sugarPeano f)
+sugarPeano (F "Zero" []) = Just 0
 sugarPeano _ = Nothing
 
 prettyInfix :: Bool -> Ctx -> OpSpec -> Term -> Term -> Doc ann
@@ -70,25 +72,22 @@ prettyInfix p c (OpSpec {opFunctor = fn, opSymbol = sym, opPrec = prec, opAssoc 
 
     body = prettyPrec False lc l <+> pretty sym <+> prettyPrec False rc r
 
-sugarList :: Term -> Maybe (Doc ann)
-sugarList (F "cons" [t, (F "cons" ts)]) = go ("[" <> prettyApplicativeTerm t) ts
-  where
-    go :: Doc ann -> [Term] -> Maybe (Doc ann)
-    go acc [t', F "cons" ts'] = go (acc <> "," <+> prettyApplicativeTerm t') ts'
-    go acc [t', F "nil" []] = Just (acc <> "," <+> prettyApplicativeTerm t' <> "]")
-    go _ _ = Nothing
-sugarList _ = Nothing
+listSpine :: Term -> Maybe [Term]
+listSpine (F "Nil" []) = Just []
+listSpine (F "Cons" [t, ts]) = (t :) <$> listSpine ts
+listSpine _ = Nothing
 
-sugarNil :: Term -> Maybe (Doc ann)
-sugarNil (F "nil" []) = Just "[]"
-sugarNil _ = Nothing
+sugarList :: Term -> Maybe (Doc ann)
+sugarList t = do
+  ts <- listSpine t
+
+  pure (brackets (hsep (punctuate "," (map prettyApplicativeTerm ts))))
 
 prettyPrec :: Bool -> Ctx -> Term -> Doc ann
 prettyPrec p c t
   -- Sugaring
   | Just n <- sugarPeano t = pretty n
   | Just d <- sugarList t = d
-  | Just d <- sugarNil t = d
   -- Operator conversion
   | F f [x, y] <- t, Just op <- lookup f operatorsByFunctor = prettyInfix p c op x y
   -- An application whose head is not a symbol yet is still juxtaposition

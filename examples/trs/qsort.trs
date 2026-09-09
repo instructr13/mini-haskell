@@ -1,18 +1,18 @@
 (VAR w x y z xs ys zs)
 (RULES
-  append(nil,         ys) -> ys
-  append(cons(x, xs), ys) -> cons(x, append(xs, ys))
+  append(Nil,          ys) -> ys
+  append(Cons(x, xs),  ys) -> Cons(x, append(xs, ys))
 
-  leq(0,    y)    -> true
-  leq(s(x), 0)    -> false
-  leq(s(x), s(y)) -> leq(x, y)
+  leq(Zero,    y)       -> True
+  leq(Succ(x), Zero)    -> False
+  leq(Succ(x), Succ(y)) -> leq(x, y)
 
-  qsort(nil)                        -> nil
-  qsort(cons(x, xs))                -> split(x, xs, nil, nil)
-  split(w, nil,         ys, zs)     -> append(qsort(ys), cons(w, qsort(zs)))
-  split(w, cons(x, xs), ys, zs)     -> if_split(leq(w, x), w, x, xs, ys, zs)
-  if_split(true,  w, x, xs, ys, zs) -> split(w, xs, ys, cons(x, zs))
-  if_split(false, w, x, xs, ys, zs) -> split(w, xs, cons(x, ys), zs)
+  qsort(Nil)                        -> Nil
+  qsort(Cons(x, xs))                -> split(x, xs, Nil, Nil)
+  split(w, Nil,          ys, zs)    -> append(qsort(ys), Cons(w, qsort(zs)))
+  split(w, Cons(x, xs),  ys, zs)    -> if_split(leq(w, x), w, x, xs, ys, zs)
+  if_split(True,  w, x, xs, ys, zs) -> split(w, xs, ys, Cons(x, zs))
+  if_split(False, w, x, xs, ys, zs) -> split(w, xs, Cons(x, ys), zs)
 
-  main -> qsort(cons(s(s(0)), cons(0, cons(s(s(s(s(0)))), cons(s(0), cons(s(s(s(0))), nil))))))
+  main -> qsort(Cons(Succ(Succ(Zero)), Cons(Zero, Cons(Succ(Succ(Succ(Succ(Zero)))), Cons(Succ(Zero), Cons(Succ(Succ(Succ(Zero))), Nil))))))
 )

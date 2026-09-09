@@ -1,17 +1,22 @@
-module ApplicativeTRS.Elab (elab, elabRule) where
+module ApplicativeTRS.Elab (elabWith, elab, elabRule) where
 
+import ApplicativeTRS.Signature
 import ApplicativeTRS.Syntax
 import TRS
 import Term
 
--- Lower a surface expression to a term.
-elab :: [String] -> SExpr -> Term
-elab vars = go []
+elabWith :: (String -> SymKind) -> SExpr -> Term
+elabWith kindOf = go
   where
-    go acc (SEApp f x) = go (go [] x : acc) f
-    go acc (SEIdent x)
-      | x `elem` vars = V x `applyTo` acc
-      | otherwise = F x acc
+    go e
+      | Variable <- kindOf x = V x `applyTo` args
+      | otherwise = F x args
+      where
+        (x, es) = spine e
+        args = map go es
 
-elabRule :: [String] -> AppRule -> Rule
-elabRule vars (l, r) = ((elab vars l), (elab vars r))
+elab :: Signature -> SExpr -> Term
+elab = elabWith . classify
+
+elabRule :: Signature -> AppRule -> Rule
+elabRule sig (l, r) = (elab sig l, elab sig r)

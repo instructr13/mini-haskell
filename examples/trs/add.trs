@@ -1,6 +1,6 @@
 (VAR x y)
 (RULES
-  add(0, y) -> y
-  add(s(x), y) -> s(add(x, y))
-  main -> add(s(s(0)), s(0))
+  add(Zero, y) -> y
+  add(Succ(x), y) -> Succ(add(x, y))
+  main -> add(Succ(Succ(Zero)), Succ(Zero))
 )

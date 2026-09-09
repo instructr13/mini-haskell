@@ -1,0 +1,3 @@
+(DATA Bool   = True | False)
+(DATA Nat    = Zero | Succ Nat)
+(DATA List a = Nil | Cons a (List a))

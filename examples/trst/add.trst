@@ -1,7 +1,6 @@
-(VAR x y)
 (RULES
-  0   + y -> y ;
-  s x + y -> s (x + y) ;
+  0      + y -> y ;
+  Succ x + y -> Succ (x + y) ;
 
   main -> 2 + 1 ;
 )

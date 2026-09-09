@@ -1,21 +1,27 @@
 module ApplicativeTRS.Loader (loadApplicativeTRS) where
 
+import ApplicativeTRS.Builtin (preludePath, preludeSrc)
+import ApplicativeTRS.Check (checkConstructors, fromConViolation)
 import ApplicativeTRS.Elab
 import ApplicativeTRS.Parser (parseApplicativeTRS)
+import ApplicativeTRS.Signature
 import ApplicativeTRS.Syntax
 import Control.Monad.Except (MonadError (throwError))
 import TRS
 import TRS.Check (checkTRS)
 import TRS.Error
-import TRS.Loader
+import TRS.Loader (fromViolation)
 
 loadApplicativeTRS :: FilePath -> String -> Either TRSError TRS
 loadApplicativeTRS file src = do
-  sectionSet <- parseApplicativeTRS file src
+  m <- parseApplicativeTRS file src
+  prelude <- parseApplicativeTRS preludePath preludeSrc
 
-  let vars = ssVars sectionSet
-  let trs = convert vars [elabRule vars rule | rule <- ssRules sectionSet]
+  let program = prelude <> m
+      sig = mkSignature program
+      trs = [elabRule sig rule | rule <- amRules program]
 
-  case checkTRS trs of
+  case map fromConViolation (checkConstructors sig trs)
+    ++ map fromViolation (checkTRS trs) of
     [] -> pure trs
-    (v : _) -> throwError (fromViolation v)
+    (e : _) -> throwError e

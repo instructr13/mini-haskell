@@ -24,18 +24,26 @@ t ::= x | f ("(" ts ")")?
 Applies functions with the [Juxtaposition Notation](https://en.wikipedia.org/wiki/Function_composition).
 
 ```bnf
-sectionSet = varSec? rulesSec
+sectionSet = dataSec* rulesSec?
 
-varSec = "(" "VAR" x* ")"
+# Data declaration (C is an upper case identifier, x a lower case one)
+dataSec = "(" "DATA" C x* "=" conDecl ("|" conDecl)* ")"
+
+conDecl = C typeAtom*
+
+typeAtom = C | x | "(" C typeAtom* ")"
 
 rulesSec = "(" "RULES" rule* ")"
 
 # Rule
-rule ::= t "->" t ";"?
+rule ::= t "->" t ";"
 
 # Applicative term
-t ::= s+
+t ::= s+ | t binOp t
 
-# Simple expression (var or constant. let v as some ident, x if x ∈ V, c else)
-s ::= x | c | "(" t ")"
+# Simple expression
+s ::= ident | numLiteral | listLiteral | "(" t ")"
+
+numLiteral  ::= digit+                # desugars to Zero / Succ
+listLiteral ::= "[" (t ("," t)*)? "]" # desugars to Nil / Cons
 ```

@@ -6,6 +6,7 @@ author: "Mido <mido@wycey.dev>"
 
 extra-source-files:
   - README.md
+  - lib/prelude.trst
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
@@ -15,6 +16,7 @@ description: Please see the README on GitHub at <https://github.com/instructr13/
 dependencies:
   - base >= 4.7 && < 5
   - containers
+  - file-embed
   - optparse-applicative
   - parser-combinators
   - prettyprinter
@@ -56,3 +58,6 @@ tests:
       - -with-rtsopts=-N
     dependencies:
       - mini-haskell
+      - hspec
+    build-tools:
+      - hspec-discover
