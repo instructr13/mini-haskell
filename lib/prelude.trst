@@ -4,10 +4,19 @@
 (DATA Fail = Fail)
 (DATA Unit = Unit)
 (DATA Tuple2 a b = Tuple2 a b)
+(DATA Maybe a = Nothing | Just a)
 (RULES
+  ## Function
+
+  id x       -> x ;
+  const x y  -> x ;
+  flip f x y -> f y x ;
+
   ## Bool
+
   not True  -> False ;
   not False -> True ;
+  not (not x) -> x ;
 
   True  && y     -> y ;
   False && y     -> False ;
@@ -31,6 +40,15 @@
   0      * y -> 0 ;
   y      * 0 -> 0 ;
   Succ x * y -> y + (x * y) ;
+
+  succ x        -> Succ x ;
+  pred 0        -> 0 ;
+  pred (Succ x) -> x ;
+
+  even 0        -> True ;
+  even (Succ x) -> odd x ;
+  odd 0         -> False ;
+  odd (Succ x)  -> even x ;
 
   0      == 0      -> True ;
   0      == Succ y -> False ;
@@ -68,9 +86,10 @@
   null []       -> True ;
   null (x : xs) -> False ;
 
-  length []         -> 0 ;
-  length (x : xs)   -> Succ (length xs) ;
-  length (map x xs) -> length xs ;
+  length []              -> 0 ;
+  length (x : xs)        -> Succ (length xs) ;
+  length (map x xs)      -> length xs ;
+  length (replicate n x) -> n ;
 
   head []       -> Fail ;
   head (x : xs) -> x ;
@@ -86,11 +105,90 @@
   elem x []       -> False ;
   elem x (y : ys) -> (x == y) || elem x ys ;
 
-  sum []           -> 0 ;
-  sum (x : xs)     -> x + sum xs ;
+  sum []              -> 0 ;
+  sum (x : xs)        -> x + sum xs ;
+  sum (replicate n x) -> n * x ;
 
   product []       -> 1 ;
   product (x : xs) -> x * product xs ;
+
+  take 0        xs       -> [] ;
+  take n        []       -> [] ;
+  take (Succ n) (x : xs) -> x : take n xs ;
+
+  drop 0        xs       -> xs ;
+  drop n        []       -> [] ;
+  drop (Succ n) (x : xs) -> drop n xs ;
+
+  splitAt n xs -> (take n xs, drop n xs) ;
+
+  takeWhile p []       -> [] ;
+  takeWhile p (x : xs) -> takeWhileWith (p x) p x xs ;
+  takeWhileWith True  p x xs -> x : takeWhile p xs ;
+  takeWhileWith False p x xs -> [] ;
+
+  dropWhile p []       -> [] ;
+  dropWhile p (x : xs) -> dropWhileWith (p x) p x xs ;
+  dropWhileWith True  p x xs -> dropWhile p xs ;
+  dropWhileWith False p x xs -> x : xs ;
+
+  replicate 0        x -> [] ;
+  replicate (Succ n) x -> x : replicate n x ;
+
+  last []           -> Fail ;
+  last (x : [])     -> x ;
+  last (x : y : ys) -> last (y : ys) ;
+
+  init []           -> Fail ;
+  init (x : [])     -> [] ;
+  init (x : y : ys) -> x : init (y : ys) ;
+
+  concat []         -> [] ;
+  concat (xs : xss) -> xs ++ concat xss ;
+
+  concatMap f []       -> [] ;
+  concatMap f (x : xs) -> f x ++ concatMap f xs ;
+
+  zipWith f []       ys       -> [] ;
+  zipWith f xs       []       -> [] ;
+  zipWith f (x : xs) (y : ys) -> f x y : zipWith f xs ys ;
+
+  zip xs ys -> zipWith (xs, ys) ;
+
+  foldl f z []       -> z ;
+  foldl f z (x : xs) -> foldl f (f z x) xs ;
+
+  all p []       -> True ;
+  all p (x : xs) -> p x && all p xs ;
+
+  any p []       -> False ;
+  any p (x : xs) -> p x || any p xs ;
+
+  notElem x xs -> not (elem x xs) ;
+
+  maximum []       -> Fail ;
+  maximum (x : xs) -> foldr max x xs ;
+
+  minimum []       -> Fail ;
+  minimum (x : xs) -> foldr min x xs ;
+
+  lookup k []                -> Nothing ;
+  lookup k ((a, b) : ps) -> lookupWith (k == a) b k ps ;
+  lookupWith True  b k ps -> Just b ;
+  lookupWith False b k ps -> lookup k ps ;
+
+  insert x []       -> [x] ;
+  insert x (y : ys) -> insertWith (x <= y) x y ys ;
+  insertWith True  x y ys -> x : y : ys ;
+  insertWith False x y ys -> y : insert x ys ;
+
+  delete x []       -> [] ;
+  delete x (y : ys) -> deleteWith (x == y) x y ys ;
+  deleteWith True  x y ys -> ys ;
+  deleteWith False x y ys -> y : delete x ys ;
+
+  nub []       -> [] ;
+  nub (x : xs) -> x : nub (delete x xs) ;
 
   # Quick sort
   sort []       -> [] ;
@@ -113,14 +211,31 @@
 
   swap (a, b) -> (b, a) ;
 
+  ## Maybe
+
+  maybe d f Nothing  -> d ;
+  maybe d f (Just x) -> f x ;
+
+  fromMaybe d Nothing  -> d ;
+  fromMaybe d (Just x) -> x ;
+
+  isJust Nothing  -> False ;
+  isJust (Just x) -> True ;
+
+  isNothing m -> not (isJust m) ;
+
   ## Higher-order functions
 
   compose f g x -> f (g x) ;
+  compose id f -> f ;
+  compose f id -> f ;
+
   (f . g) . h -> f . (g . h) ;
 
-  map f []         -> [] ;
-  map f (x : xs)   -> f x : map f xs ;
-  map f (map g xs) -> map (f . g) xs ;
+  map f  []         -> [] ;
+  map f  (x : xs)   -> f x : map f xs ;
+  map f  (map g xs) -> map (f . g) xs ;
+  map id xs         -> xs ;
 
   foldr f z []       -> z ;
   foldr f z (x : xs) -> f x (foldr f z xs) ;
