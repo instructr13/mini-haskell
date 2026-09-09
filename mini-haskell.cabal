@@ -23,7 +23,14 @@ source-repository head
 
 library
   exposed-modules:
+      ApplicativeTRS.Elab
+      ApplicativeTRS.Lexer
+      ApplicativeTRS.Loader
+      ApplicativeTRS.Parser
+      ApplicativeTRS.Syntax
+      ApplicativeTRS.TokenStream
       Error
+      Lexer
       Source
       TRS
       TRS.Check

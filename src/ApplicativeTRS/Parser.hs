@@ -1,29 +1,28 @@
-module TRS.Parser (parseTRS) where
+module ApplicativeTRS.Parser (parseApplicativeTRS) where
 
+import ApplicativeTRS.Lexer
+import ApplicativeTRS.Syntax
+import ApplicativeTRS.TokenStream
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Data.Void
-import TRS
 import TRS.Error
-import TRS.Lexer
-import TRS.Syntax
-import TRS.TokenStream
 import Text.Megaparsec hiding (Token)
 import Util
 
 type Parser = Parsec Void TokenStream
 
-parseTRS :: FilePath -> String -> Either TRSError SectionSet
-parseTRS file src = do
-  toks <- mapLeft syntaxError (lexTRS file src)
+parseApplicativeTRS :: FilePath -> String -> Either TRSError AppSectionSet
+parseApplicativeTRS file src = do
+  toks <- mapLeft syntaxError (lexApplicativeTRS file src)
 
   parseTokens file src toks
 
 syntaxError :: (TraversableStream s, VisualStream s) => ParseErrorBundle s Void -> TRSError
 syntaxError e = SyntaxError (bundleErrorPos e) (errorBundlePretty e)
 
-parseTokens :: FilePath -> String -> [PosToken] -> Either TRSError SectionSet
+parseTokens :: FilePath -> String -> [PosToken] -> Either TRSError AppSectionSet
 parseTokens file src toks = mapLeft syntaxError sectionSet
   where
     sectionSet = parse (pSectionSet <* eof) file (tokenStream src toks)
@@ -68,33 +67,30 @@ pVarSec = parens $ do
 
   nub <$> many ident
 
-pTerm :: [String] -> Parser Term
-pTerm vars = do
-  f <- ident
-  ts <-
-    fromMaybe []
-      <$> (optional (parens $ sepBy1 (pTerm vars) (special ',')))
+pSimpleExpression :: Parser SExpr
+pSimpleExpression = SEIdent <$> ident <|> parens pTerm
 
-  pure (if f `elem` vars && null ts then V f else F f ts)
+pTerm :: Parser SExpr
+pTerm = foldl1 SEApp <$> some pSimpleExpression
 
-pRule :: [String] -> Parser Rule
-pRule vars = do
-  lhs <- pTerm vars
+pRule :: Parser AppRule
+pRule = do
+  lhs <- pTerm
   _ <- op "->"
-  rhs <- pTerm vars
+  rhs <- pTerm
+  _ <- semi
 
   pure (lhs, rhs)
 
-pRulesSec :: [String] -> Parser [Rule]
-pRulesSec vars = parens $ do
+pRulesSec :: Parser [AppRule]
+pRulesSec = parens $ do
   _ <- keyword "RULES"
 
-  itemsOf (pRule vars)
+  itemsOf pRule
 
-pSectionSet :: Parser SectionSet
+pSectionSet :: Parser AppSectionSet
 pSectionSet = do
   vars <- fromMaybe [] <$> optional pVarSec
+  rs <- pRulesSec
 
-  rs <- pRulesSec vars
-
-  pure (SectionSet {ssVars = vars, ssRules = rs})
+  pure (AppSectionSet {ssVars = vars, ssRules = rs})

@@ -5,7 +5,7 @@ import qualified Prettyprinter.Render.Text as Text
 import System.IO
 
 layout :: Doc ann -> SimpleDocStream ann
-layout = layoutPretty (LayoutOptions (AvailablePerLine 80 1.0))
+layout = layoutPretty (LayoutOptions (AvailablePerLine 120 1.0))
 
 hPutDoc :: Handle -> Doc ann -> IO ()
 hPutDoc h d = Text.renderIO h (layout (unAnnotate d))

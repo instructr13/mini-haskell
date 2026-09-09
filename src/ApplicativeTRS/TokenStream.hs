@@ -1,16 +1,16 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module TRS.TokenStream
+module ApplicativeTRS.TokenStream
   ( TokenStream (..),
     tokenStream,
     bundleErrorPos,
   )
 where
 
+import ApplicativeTRS.Lexer (PosToken (..), showToken, tokenWidth)
 import qualified Data.List.NonEmpty as NE
 import Data.Proxy (Proxy (..))
 import Lexer
-import TRS.Lexer (PosToken (..), showToken, tokenWidth)
 import Text.Megaparsec
 
 data TokenStream = TokenStream

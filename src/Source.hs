@@ -2,23 +2,26 @@
 
 module Source (module Source) where
 
+import ApplicativeTRS.Loader (loadApplicativeTRS)
 import Data.List (isSuffixOf)
 import Prettyprinter
 import TRS
 import TRS.Error (TRSError (..))
-import TRS.Loader
+import TRS.Loader (loadTRS)
 import Util (mapLeft)
 
-data SourceKind = TRSSource | HSSource deriving (Eq, Show)
+data SourceKind = TRSSource | AppTRSSource | HSSource deriving (Eq, Show)
 
 data SourceError
   = SrcTRSError TRSError
+  | SrcAppTRSError TRSError
   | SrcHSError
   | UnknownSrcError
 
 sourceKind :: FilePath -> Either SourceError SourceKind
 sourceKind file
   | ".trs" `isSuffixOf` file = Right TRSSource
+  | ".trst" `isSuffixOf` file = Right AppTRSSource
   | ".hs" `isSuffixOf` file = Right HSSource
   | otherwise = Left UnknownSrcError
 
@@ -31,6 +34,7 @@ multilineErrorDoc title msg =
 
 sourceErrorDoc :: SourceError -> Doc ann
 sourceErrorDoc (SrcTRSError e) = trsErrorDoc e
+sourceErrorDoc (SrcAppTRSError e) = trsErrorDoc e
 sourceErrorDoc SrcHSError = undefined
 sourceErrorDoc UnknownSrcError = "unknown source file (only .trs and .hs are supported)"
 
@@ -43,4 +47,5 @@ compileSrc :: FilePath -> String -> Either SourceError TRS
 compileSrc file src = case sourceKind file of
   Left e -> Left e
   Right TRSSource -> mapLeft SrcTRSError (loadTRS file src)
+  Right AppTRSSource -> mapLeft SrcTRSError (loadApplicativeTRS file src)
   Right HSSource -> undefined

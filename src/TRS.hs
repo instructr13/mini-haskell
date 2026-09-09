@@ -1,19 +1,32 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module TRS (module TRS) where
 
-import Data.List (intercalate, isPrefixOf, nub, nubBy)
+import Data.List (intercalate, isPrefixOf, nub, nubBy, (!?))
+import Data.Maybe
 import Prettyprinter
 
 data Term = V String | F String [Term] deriving (Eq)
 
 instance Pretty Term where
-  pretty (V x) = pretty x
-  pretty (F f []) = pretty f
-  pretty (F f ts) = group (pretty f <> "(" <> nest 2 (arity ts) <> ")")
+  pretty = go False
     where
-      arity :: [Term] -> Doc ann
-      arity ts' = align (sep (punctuate "," (map pretty ts')))
+      go :: Bool -> Term -> Doc ann
+      go _ t | (h, []) <- flatten t = pretty h
+      go p t
+        | (h, args) <- flatten t =
+            parensIf p (hang 2 (sep (pretty h : map (go True) args)))
+
+      parensIf :: Bool -> Doc ann -> Doc ann
+      parensIf b = if b then parens else id
+
+      flatten :: Term -> (String, [Term])
+      flatten = go' []
+        where
+          go' acc (V x) = (x, acc)
+          go' acc (F f bs) = (f, bs ++ acc)
 
 type Position = [Int]
 
@@ -28,6 +41,28 @@ type Strategy = TRS -> Term -> Maybe Term
 instance Show Term where
   show (V x) = x
   show (F f ts) = f ++ (if length ts > 0 then "(" ++ intercalate "," [show t | t <- ts] ++ ")" else "")
+
+-- Special function for function application operator (juxtaposition notation)
+appName :: String
+appName = "@"
+
+-- is f :@ x = @(f, x) ?
+pattern (:@) :: Term -> Term -> Term
+pattern f :@ x <- F "@" [f, x]
+  where
+    f :@ x = F appName [f, x]
+
+infixl 9 :@
+
+apps :: Term -> [Term] -> Term
+apps = foldl (:@)
+
+-- @(@(f,a),b) ==> (f, [a,b])
+spine :: Term -> (Term, [Term])
+spine = go []
+  where
+    go acc (f :@ x) = go (x : acc) f
+    go acc t = (t, acc)
 
 -- Rename every variable apart by appending a suffix.
 -- renameTerm "'" (F "f" [V "x", V "y"]) = F "f" [V "x'", V "y'"]
@@ -61,21 +96,25 @@ positions (F _ ts) = [[]] ++ [i : j | i <- [0 .. length ts - 1], j <- positions 
 -- subTermAt (F "add" [V "x", V "y"]) [0] = V "x"
 -- subTermAt (F "add" [V "x", V "y"]) [1] = V "y"
 -- subTermAt (F "add" [(F "add" [V "x", V "y"]), V "y"]) [0, 0] = V "x"
-subTermAt :: Term -> Position -> Term
-subTermAt t [] = t
+subTermAt :: Term -> Position -> Maybe Term
+subTermAt t [] = Just t
 subTermAt (V _) _ = error "subTermAt: cannot use sub-position to a variable"
-subTermAt (F _ ts) (p : ps) = subTermAt (ts !! p) ps
+subTermAt (F _ ts) (i : ps) = case ts !? i of
+  Just u -> subTermAt u ps
+  _ -> Nothing
 
 -- replace t u p = t[u]_p
 -- replace (F "add" [V "x", V "y"]) (F "0" []) [0] = F "add" [(F "0" []), V "y"]
 -- replace (F "add" [(F "add" [V "x", V "y"]), V "y"]) (F "0" []) [0, 0]
 --   = F "add" [F "add" [F "0" [], V "y"], V "y"]
-replace :: Term -> Term -> Position -> Term
-replace _ u [] = u
+replace :: Term -> Term -> Position -> Maybe Term
+replace _ u [] = Just u
 replace (V _) _ _ = error "replace: cannot use sub-position to a variable"
-replace (F f ts) u (p : ps) = F f [if p' == p then newT else t | (p', t) <- zip [0 .. length ts - 1] ts]
-  where
-    newT = replace (ts !! p) u ps
+replace (F f ts) u (i : ps)
+  | (pre, c : post) <- splitAt i ts = case replace c u ps of
+      Just c' -> Just (F f (pre ++ c' : post))
+      _ -> Nothing
+  | otherwise = Nothing
 
 -- Var(t)
 variables :: Term -> [String]
@@ -84,35 +123,24 @@ variables (F _ ts) = nub [x | t <- ts, x <- variables t]
 
 -- substitute t sigma = t sigma
 substitute :: Term -> Subst -> Term
-substitute (V x) sigma
-  | Just t <- lookup x sigma = t
-  | otherwise = V x
+substitute (V x) sigma = fromMaybe (V x) (lookup x sigma)
 substitute (F f ts) sigma = F f [substitute t sigma | t <- ts]
 
 -- theta = compose sigma tau
---       = {x ↦ s tau | (x ↦ s) ∈ sigma} ∪ {y ↦ t | (y ↦ t) ∈ tau, y ∉ Dom(sigma)}
+--       = {x ↦ t tau | (x ↦ t) ∈ sigma} ∪ {y ↦ t | (y ↦ t) ∈ tau, y ∉ Dom(sigma)}
 -- substitute t (compose sigma tau) = substitute (substitute t sigma) tau
 compose :: Subst -> Subst -> Subst
-compose sigma tau =
-  [(x, t) | (x, s) <- sigma, let t = substitute s tau, t /= V x]
-    ++ [(y, t) | (y, t) <- tau, y `notElem` map fst sigma, t /= V y]
+compose sigma tau = [(x, substitute t tau) | (x, t) <- sigma] ++ [b | b@(x, _) <- tau, x `notElem` dom]
+  where
+    dom = map fst sigma
 
--- Pattern matching auxiliary function
-match' :: Subst -> [(Term, Term)] -> Maybe Subst
-match' sigma [] = Just sigma
-match' sigma ((F f1 ts1, F f2 ts2) : ts)
-  -- Rule II: {f(s_1, ..., s_n) ↦ g(t_1, ..., t_n)} ∪ S ==> ⊥ if f /= g
-  | f1 /= f2 = Nothing
-  -- Rule I: {f(s_1, ..., s_n) ↦ f(t_1, ..., t_n)} ∪ S ==> {s_1 ↦ t_1, ..., s_n ↦ t_n} ∪ S
-  | otherwise = match' sigma (zip ts1 ts2 ++ ts)
--- Rule IV: {x ↦ t} ∪ S ==> ⊥ if x ↦ t' ∈ S with t /= t'
-match' sigma ((V x, t) : ts) =
-  case lookup x sigma of
-    Just t' | t /= t' -> Nothing
-    Just _ -> match' sigma ts
-    _ -> match' ((x, t) : sigma) ts
--- Includes Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S ==> ⊥
-match' _ _ = Nothing
+-- Rule I: {f(s_1, ..., s_n) ↦ f(t_1, ..., t_n)} ∪ S ==> {s_1 ↦ t_1, ..., s_n ↦ t_n} ∪ S
+-- Rule II: {f(s_1, ..., s_n) ↦ g(t_1, ..., t_n)} ∪ S ==> ⊥ if f /= g, do not decompose
+-- Includes Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S ==> ⊥, do not decompose
+decompose :: Term -> Term -> Maybe [(Term, Term)]
+decompose (F f ts) (F g us)
+  | f == g && length ts == length us = Just (zip ts us)
+decompose _ _ = Nothing
 
 -- match s t = Just sigma, if s sigma = t for some sigma
 -- match s t = Nothing, otherwise
@@ -121,35 +149,52 @@ match' _ _ = Nothing
 -- match (F "add" [(F "s" [V "x"]), (F "add" [V "x", V "y"])]) (F "add" [(F "s" [(F "add" [(F "0" []), V "x"])]), (F "add" [(F "add" [(F "0" []), (F "0" [])]), V "x"])])
 --   = Nothing
 match :: Term -> Term -> Maybe Subst
-match s t = match' [] [(s, t)]
-
--- Unification auxiliary function
-unify' :: Subst -> [(Term, Term)] -> Maybe Subst
-unify' sigma [] = Just sigma
--- Rule I, II
-unify' sigma ((F f1 ts1, F f2 ts2) : ts)
-  | f1 /= f2 = Nothing
-  | otherwise = unify' sigma (zip ts1 ts2 ++ ts)
-unify' sigma ((V x, t) : ts)
-  | V y <- t, x == y = unify' sigma ts
-  | x `elem` tv = Nothing -- x ∈ Var(t) ==> ⊥
-  | otherwise = unify' sigma' ts'
+match s0 t0 = go [] [(s0, t0)]
   where
-    tv = variables t
-    ts' = [(substitute t1 [(x, t)], substitute t2 [(x, t)]) | (t1, t2) <- ts]
-    sigma' = (x, t) : [(s', substitute t' [(x, t)]) | (s', t') <- sigma]
--- Replace of Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S ==> {x ↦ f(s_1, ..., s_n)} ∪ S to allow bidirectional matching
-unify' sigma ((t@(F _ _), V x) : ts) = unify' sigma ((V x, t) : ts)
+    go :: Subst -> [(Term, Term)] -> Maybe Subst
+    go sigma [] = Just sigma
+    -- Rule IV: {x ↦ t} ∪ S ==> ⊥ if x ↦ t' ∈ S with t /= t'
+    go sigma ((V x, t) : ts) =
+      case lookup x sigma of
+        Just t' | t /= t' -> Nothing
+        Just _ -> go sigma ts
+        _ -> go ((x, t) : sigma) ts
+    go sigma ((s, t) : ts) = case decompose s t of
+      Just new -> go sigma (new ++ ts)
+      _ -> Nothing
+
+occurs :: String -> Term -> Bool
+occurs x (V y) = x == y
+occurs x (F _ ts) = any (occurs x) ts
 
 -- Unification
 -- unify (F "f" [V "x", F "a" []]) (F "f" [F "b" [], V "y"]) = Just [("y",a),("x",b)]
 -- unify (V "x") (F "f" [V "x"]) = Nothing
 unify :: Term -> Term -> Maybe Subst
-unify s t = unify' [] [(s, t)]
+unify s0 t0 = go [] [(s0, t0)]
+  where
+    go :: Subst -> [(Term, Term)] -> Maybe Subst
+    go sigma [] = Just sigma
+    go sigma ((V x, t) : ts)
+      | V y <- t, x == y = go sigma ts
+      | occurs x t = Nothing -- x ∈ Var(t) ==> ⊥
+      | otherwise = go sigma' ts'
+      where
+        ts' = [(substitute t1 [(x, t)], substitute t2 [(x, t)]) | (t1, t2) <- ts]
+        sigma' = (x, t) : [(s', substitute t' [(x, t)]) | (s', t') <- sigma]
+    -- Replace of Rule III: {f(s_1, ..., s_n) ↦ x} ∪ S
+    --                  ==> {x ↦ f(s_1, ..., s_n)} ∪ S
+    -- to allow bidirectional matching
+    go sigma ((t@(F _ _), V x) : ts) = go sigma ((V x, t) : ts)
+    -- Rule I, II
+    go sigma ((s, t) : ts) = case decompose s t of
+      Just new -> go sigma (new ++ ts)
+      _ -> Nothing
 
 -- {t | s ->_R t} = {s[r sigma]_p | ∃ p ∈ Pos(s). ∃ l -> r ∈ R. ∃ sigma which satisfies l sigma = s|_p}
 reducts :: TRS -> Term -> [(Position, Term)]
-reducts trs s = [(p, substitute r sigma) | p <- positions s, (l, r) <- trs, Just sigma <- [match l (subTermAt s p)]]
+reducts trs s =
+  [(p, substitute r sigma) | p <- positions s, Just u <- [subTermAt s p], (l, r) <- trs, Just sigma <- [match l u]]
 
 -- rewrite R t = Just u, if t ->_R u for some term u
 -- rewrite R t = Nothing, otherwise
@@ -157,25 +202,23 @@ rewrite :: Strategy
 rewrite trs s =
   case reducts trs s of
     [] -> Nothing
-    rs -> Just (foldl' (\acc (p, t) -> replace acc t p) s (nubBy encloses rs))
+    rs -> Just (foldl' f s (nubBy encloses rs))
   where
+    encloses :: (Eq a) => ([a], b) -> ([a], c) -> Bool
     encloses (p, _) (q, _) = p `isPrefixOf` q
+
+    f :: Term -> ([Int], Term) -> Term
+    f acc (p, t) = case replace acc t p of
+      Just acc' -> acc'
+      Nothing -> acc
 
 -- nf R t = u if t ->_R ... ->_R u for some normal form u
 nfWith :: Strategy -> TRS -> Term -> Term
-nfWith f trs t
-  | Just u' <- u = nfWith f trs u'
-  | Nothing <- u = t
+nfWith f trs t0 = go t0
   where
-    u = f trs t
-
-nfWithLimit :: Int -> TRS -> Term -> Either Term Term
-nfWithLimit 0 _ t = Left t
-nfWithLimit limit trs t
-  | Just u' <- u = nfWithLimit (limit - 1) trs u'
-  | Nothing <- u = Right t
-  where
-    u = rewrite trs t
+    go !t = case f trs t of
+      Just t' -> go t'
+      _ -> t
 
 nf :: TRS -> Term -> Term
 nf trs t = nfWith rewrite trs t

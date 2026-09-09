@@ -1,4 +1,4 @@
-module TRS.Loader (loadTRS) where
+module TRS.Loader (convert, fromViolation, loadTRS) where
 
 import Control.Monad.Except (MonadError (throwError))
 import Data.List (nub)

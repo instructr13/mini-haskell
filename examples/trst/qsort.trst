@@ -1,0 +1,18 @@
+(VAR w x y z xs ys zs)
+(RULES
+  append nil         ys -> ys ;
+  append (cons x xs) ys -> cons x (append xs ys) ;
+
+  leq 0     y     -> true ;
+  leq (s x) 0     -> false ;
+  leq (s x) (s y) -> leq x y ;
+
+  qsort nil                   -> nil ;
+  qsort (cons x xs)           -> split x xs nil nil ;
+  split w nil         ys zs   -> append (qsort ys) (cons w (qsort zs)) ;
+  split w (cons x xs) ys zs   -> if_split (leq w x) w x xs ys zs ;
+  if_split true  w x xs ys zs -> split w xs ys (cons x zs) ;
+  if_split false w x xs ys zs -> split w xs (cons x ys) zs ;
+
+  main -> qsort (cons (s (s 0)) (cons 0 (cons (s (s (s (s 0)))) (cons (s 0) (cons (s (s (s 0))) nil))))) ;
+)

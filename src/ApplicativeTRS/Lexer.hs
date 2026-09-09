@@ -1,4 +1,4 @@
-module TRS.Lexer (Token (..), PosToken (..), showToken, unvirtual, lexTRS, tokenWidth) where
+module ApplicativeTRS.Lexer (Token (..), PosToken (..), showToken, unvirtual, lexApplicativeTRS, tokenWidth) where
 
 import Error
 import Lexer
@@ -11,7 +11,9 @@ data Token
   = TIdent String -- @x@
   | TKeyword String -- @VAR@, @RULES@
   | TOp String -- @->@
-  | TSpecial Char -- @( ) , ;@
+  | TSpecial Char -- @();@
+  | TVOpenBlock
+  | TVCloseBlock
   | TVEndOfStmt
   deriving (Eq, Ord, Show)
 
@@ -20,6 +22,8 @@ showToken (TIdent s) = s
 showToken (TKeyword s) = s
 showToken (TOp s) = s
 showToken (TSpecial c) = [c]
+showToken TVOpenBlock = "("
+showToken TVCloseBlock = ")"
 showToken TVEndOfStmt = "\n"
 
 data PosToken = PosToken
@@ -32,6 +36,8 @@ isVirtual :: Token -> Bool
 isVirtual t = t `elem` [TVEndOfStmt]
 
 unvirtual :: Token -> Token
+unvirtual TVOpenBlock = TSpecial '('
+unvirtual TVCloseBlock = TSpecial ')'
 unvirtual TVEndOfStmt = TSpecial ';'
 unvirtual t = t
 
@@ -42,10 +48,10 @@ ops :: [String]
 ops = ["->"]
 
 specialChars :: String
-specialChars = "(),;"
+specialChars = "();"
 
-lexTRS :: FilePath -> String -> Either ParseError [PosToken]
-lexTRS = parse (sc *> many pTokenWithPos <* eof)
+lexApplicativeTRS :: FilePath -> String -> Either ParseError [PosToken]
+lexApplicativeTRS = parse (sc *> many pTokenWithPos <* eof)
 
 pTokenWithPos :: Parser PosToken
 pTokenWithPos = do
