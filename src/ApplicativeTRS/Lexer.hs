@@ -1,5 +1,6 @@
 module ApplicativeTRS.Lexer (Token (..), PosToken (..), showToken, unvirtual, lexApplicativeTRS, tokenWidth) where
 
+import Data.List (sortBy)
 import Error
 import Lexer
 import Text.Megaparsec hiding (ParseError, Token)
@@ -54,7 +55,34 @@ keywords :: [String]
 keywords = ["VAR", "RULES"]
 
 ops :: [String]
-ops = ["->"]
+ops =
+  sortBy
+    (flip compare)
+    [ "->", -- Rule assoc operator
+
+      --- General operators
+
+      -- Priority 6
+      "+", -- plus (left)
+
+      -- Priority 5
+      ":", -- cons (right)
+      "++", -- append (right)
+
+      -- Priority 4
+      "==", -- eq
+      "/=", -- neq
+      "<=", -- leq
+      "<", -- lt
+      ">=", -- geq
+      ">", -- gt
+
+      -- Priority 3
+      "&&", -- and
+
+      -- Priority 2
+      "||" -- or
+    ]
 
 specialChars :: String
 specialChars = "();"

@@ -16,6 +16,7 @@ dependencies:
   - base >= 4.7 && < 5
   - containers
   - optparse-applicative
+  - parser-combinators
   - prettyprinter
   - megaparsec
   - mtl

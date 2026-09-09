@@ -4,6 +4,7 @@
 
 module TRS (module TRS) where
 
+import ApplicativeTRS.Pretty (prettyApplicativeTerm)
 import Data.List (isPrefixOf, nub, nubBy, (!?))
 import Data.Maybe
 import Prettyprinter
@@ -205,7 +206,7 @@ showRule (l, r) = show l ++ " -> " ++ show r
 
 prettyRule :: Rule -> Doc ann
 prettyRule (l, r) =
-  group (pretty l <+> "->" <> nest 2 (line <> pretty r))
+  group (prettyApplicativeTerm l <+> "->" <> nest 2 (line <> prettyApplicativeTerm r))
 
 showTRS :: TRS -> String
 showTRS trs = unlines [showRule rule | rule <- trs]

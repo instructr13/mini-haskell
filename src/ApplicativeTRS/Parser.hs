@@ -4,6 +4,7 @@ import ApplicativeTRS.Lexer
 import ApplicativeTRS.Special.Peano (toPeanoSExpr)
 import ApplicativeTRS.Syntax
 import ApplicativeTRS.TokenStream
+import Control.Monad.Combinators.Expr
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
@@ -13,6 +14,31 @@ import Text.Megaparsec hiding (Token)
 import Util
 
 type Parser = Parsec Void TokenStream
+
+-- See op of ApplicativeTRS.Lexer for definition
+operatorTable :: [[Operator Parser SExpr]]
+operatorTable =
+  [ [ InfixL (mkBinOp "add" <$ op "+")
+    ],
+    [ InfixR (mkBinOp "cons" <$ op ":"),
+      InfixR (mkBinOp "append" <$ op "++")
+    ],
+    [ InfixN (mkBinOp "eq" <$ op "=="),
+      InfixN (mkBinOp "neq" <$ op "/="),
+      InfixN (mkBinOp "leq" <$ op "<="),
+      InfixN (mkBinOp "lt" <$ op "<"),
+      InfixN (mkBinOp "geq" <$ op ">="),
+      InfixN (mkBinOp "gt" <$ op ">"),
+      InfixN (mkBinOp "neq" <$ op "/=")
+    ],
+    [ InfixR (mkBinOp "and" <$ op "&&")
+    ],
+    [ InfixR (mkBinOp "or" <$ op "||")
+    ]
+  ]
+  where
+    mkBinOp :: String -> SExpr -> SExpr -> SExpr
+    mkBinOp name l r = SEApp (SEApp (SEIdent name) l) r
 
 parseApplicativeTRS :: FilePath -> String -> Either TRSError AppSectionSet
 parseApplicativeTRS file src = do
@@ -81,8 +107,11 @@ pPeanoNum = toPeanoSExpr <$> numLiteral
 pSimpleExpression :: Parser SExpr
 pSimpleExpression = SEIdent <$> ident <|> pPeanoNum <|> parens pTerm
 
+pApplication :: Parser SExpr
+pApplication = foldl SEApp <$> pSimpleExpression <*> many pSimpleExpression
+
 pTerm :: Parser SExpr
-pTerm = foldl1 SEApp <$> some pSimpleExpression
+pTerm = makeExprParser pApplication operatorTable
 
 pRule :: Parser AppRule
 pRule = do

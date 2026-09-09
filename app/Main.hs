@@ -2,6 +2,7 @@
 
 module Main (main) where
 
+import ApplicativeTRS.Pretty (prettyApplicativeTerm)
 import Args
 import Control.Exception
 import Options.Applicative (execParser)
@@ -38,7 +39,7 @@ runMain args = do
               (errorDoc ("no rule for main in " <+> pretty f))
           Just mainF -> do
             hPutDocLn stdout mempty
-            hPutDocLn stdout ("-->" <+> pretty (nf trs mainF))
+            hPutDocLn stdout ("-->" <+> prettyApplicativeTerm (nf trs mainF))
 
 die :: Doc ann -> IO ()
 die d = hPutDocLn stderr d >> exitFailure

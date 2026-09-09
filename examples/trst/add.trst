@@ -1,6 +1,7 @@
 (VAR x y)
 (RULES
-  add 0 y -> y ;
-  add (s x) y -> s (add x y) ;
-  main -> add 2 1 ;
+  0   + y -> y ;
+  s x + y -> s (x + y) ;
+
+  main -> 2 + 1 ;
 )

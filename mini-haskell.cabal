@@ -27,6 +27,7 @@ library
       ApplicativeTRS.Lexer
       ApplicativeTRS.Loader
       ApplicativeTRS.Parser
+      ApplicativeTRS.Pretty
       ApplicativeTRS.Special.Peano
       ApplicativeTRS.Syntax
       ApplicativeTRS.TokenStream
@@ -55,6 +56,7 @@ library
     , megaparsec
     , mtl
     , optparse-applicative
+    , parser-combinators
     , prettyprinter
   default-language: Haskell2010
 
@@ -74,6 +76,7 @@ executable mini-haskell-exe
     , mini-haskell
     , mtl
     , optparse-applicative
+    , parser-combinators
     , prettyprinter
   default-language: Haskell2010
 
@@ -92,5 +95,6 @@ test-suite mini-haskell-test
     , mini-haskell
     , mtl
     , optparse-applicative
+    , parser-combinators
     , prettyprinter
   default-language: Haskell2010
