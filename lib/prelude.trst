@@ -68,10 +68,9 @@
   null []       -> True ;
   null (x : xs) -> False ;
 
-  length []           -> 0 ;
-  length (x : xs)     -> Succ (length xs) ;
-  length (map x xs)   -> length xs
-  length (reverse xs) -> length xs
+  length []         -> 0 ;
+  length (x : xs)   -> Succ (length xs) ;
+  length (map x xs) -> length xs ;
 
   head []       -> Fail ;
   head (x : xs) -> x ;
@@ -84,13 +83,11 @@
   reverse (reverse xs) -> xs ;
   reverse (xs ++ ys)   -> reverse ys ++ reverse xs ;
 
-  elem x []           -> False ;
-  elem x (y : ys)     -> (x == y) || elem x ys ;
-  elem x (reverse ys) -> elem x ys ;
+  elem x []       -> False ;
+  elem x (y : ys) -> (x == y) || elem x ys ;
 
   sum []           -> 0 ;
   sum (x : xs)     -> x + sum xs ;
-  sum (reverse xs) -> sum xs ;
 
   product []       -> 1 ;
   product (x : xs) -> x * product xs ;
@@ -99,22 +96,22 @@
   sort []       -> [] ;
   sort (x : xs) -> joinParts x (partition x xs) ;
 
-  joinParts x (Tuple2 ys zs) -> sort ys ++ (x : sort zs) ;
+  joinParts x (ys, zs) -> sort ys ++ (x : sort zs) ;
 
   # partition p xs = (the elements of xs below p, the elements from p up)
-  partition p []       -> Tuple2 [] [] ;
+  partition p []       -> ([], []) ;
   partition p (x : xs) -> partitionWith (p <= x) x (partition p xs) ;
 
-  partitionWith True  x (Tuple2 ys zs) -> Tuple2 ys       (x : zs) ;
-  partitionWith False x (Tuple2 ys zs) -> Tuple2 (x : ys) zs ;
+  partitionWith True  x (ys, zs) -> (ys, x : zs) ;
+  partitionWith False x (ys, zs) -> (x : ys, zs) ;
 
   ## Tuple2
 
-  fst (Tuple2 a b) -> a ;
+  fst (a, b) -> a ;
 
-  snd (Tuple2 a b) -> b ;
+  snd (a, b) -> b ;
 
-  swap (Tuple2 a b) -> Tuple2 b a ;
+  swap (a, b) -> (b, a) ;
 
   ## Higher-order functions
 

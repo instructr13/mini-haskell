@@ -29,6 +29,7 @@ library
       ApplicativeTRS.Desugar
       ApplicativeTRS.Desugar.List
       ApplicativeTRS.Desugar.Peano
+      ApplicativeTRS.Desugar.Tuple
       ApplicativeTRS.Elab
       ApplicativeTRS.Lexer
       ApplicativeTRS.Loader
@@ -41,6 +42,7 @@ library
       HS.Desugar
       HS.Desugar.List
       HS.Desugar.Peano
+      HS.Desugar.Tuple
       HS.Elab
       HS.Layout
       HS.Lexer

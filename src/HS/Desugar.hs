@@ -2,6 +2,7 @@ module HS.Desugar (pDesugared) where
 
 import HS.Desugar.List
 import HS.Desugar.Peano
+import HS.Desugar.Tuple (desugarTuple)
 import HS.Lexer
 import HS.Syntax
 import Text.Megaparsec hiding (Token)
@@ -19,3 +20,5 @@ pDesugared pElem =
     <$> pUIntLiteral
       <|> desugarListExpr
     <$> squareBrackets (sepBy pElem (special ','))
+      <|> desugarTuple
+    <$> parens (sepBy pElem (special ','))

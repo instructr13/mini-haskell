@@ -53,13 +53,19 @@ sugarList :: Term -> Maybe (Doc ann)
 sugarList t = do
   ts <- listSpine t
 
-  pure (brackets (hsep (punctuate "," (map prettyTerm ts))))
+  pure (brackets (hsep (punctuate "," ([prettyTerm t' | t' <- ts]))))
+
+sugarTuple :: Term -> Maybe (Doc ann)
+sugarTuple (F "Unit" []) = Just "()"
+sugarTuple (F "Tuple2" [x, y]) = Just (parens (hsep (punctuate "," ([prettyTerm t | t <- [x, y]]))))
+sugarTuple _ = Nothing
 
 prettyPrec :: Bool -> Ctx -> Term -> Doc ann
 prettyPrec p c t
   -- Sugaring
   | Just n <- sugarPeano t = pretty n
   | Just d <- sugarList t = d
+  | Just d <- sugarTuple t = d
   -- Operator conversion
   | F f [x, y] <- t, Just op <- lookup f operatorsByFunctor = prettyInfix p c op x y
   -- An application whose head is not a symbol yet is still juxtaposition

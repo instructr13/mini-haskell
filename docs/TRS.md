@@ -49,6 +49,8 @@ s ::= ident | numLiteral | listLiteral | "(" t ")"
 
 numLiteral  ::= digit+                # desugars to Zero / Succ
 listLiteral ::= "[" (t ("," t)*)? "]" # desugars to Nil / Cons
+
+tuple ::= "(" (t ("," t)?)? ")"       # desugars to Unit / Tuple2
 ```
 
 ## (Simplified) Haskell in EBNF
@@ -76,6 +78,7 @@ apat ::= x
       | numLiteral
       | patListLiteral
       | "(" pat ")"
+      | patTuple
 
 # Terms
 t    ::= app | t binOp t
@@ -83,12 +86,13 @@ t    ::= app | t binOp t
 # Function application
 app  ::= s s*
 
-# Simple expression (no tuples or a unit)
+# Simple expression
 s    ::= x
        | C
        | numLiteral
        | termListLiteral
        | "(" t ")"
+       | termTuple
 
 # desugars to Zero / Succ
 numLiteral  ::= digit+
@@ -97,4 +101,8 @@ numLiteral  ::= digit+
 # pat doesn't allow terms in a list, so we define them separately
 termListLiteral ::= "[" (t ("," t)*)? "]"
 patListLiteral  ::= "[" (pat ("," pat)*)? "]"
+
+# desugars to Unit / Tuple2
+termTuple ::= "(" (t ("," t)?)? ")"
+patTuple  ::= "(" (pat ("," pat)?)? ")"
 ```
