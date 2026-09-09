@@ -33,11 +33,25 @@ library
       ApplicativeTRS.Lexer
       ApplicativeTRS.Loader
       ApplicativeTRS.Parser
-      ApplicativeTRS.Pretty
       ApplicativeTRS.Signature
       ApplicativeTRS.Syntax
       ApplicativeTRS.TokenStream
       Error
+      HS.Check
+      HS.Desugar
+      HS.Desugar.List
+      HS.Desugar.Peano
+      HS.Elab
+      HS.InterOp
+      HS.Layout
+      HS.Lexer
+      HS.Loader
+      HS.Operator
+      HS.Parser
+      HS.Pretty
+      HS.Signature
+      HS.Syntax
+      HS.TokenStream
       Lexer
       Source
       Term

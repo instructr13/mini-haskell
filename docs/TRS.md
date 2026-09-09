@@ -39,7 +39,10 @@ rulesSec ::= "(" "RULES" rule* ")"
 rule ::= t "->" t ";"
 
 # Applicative term
-t ::= s+ | t binOp t
+t ::= app | t binOp t
+
+# Function application
+app = s s*
 
 # Simple expression
 s ::= ident | numLiteral | listLiteral | "(" t ")"
@@ -59,19 +62,39 @@ module ::= decl*
 # - Data declaration (C is an upper case ident, x a lower case one)
 # - Rule declaration
 decl ::= "data" C x* "=" conDecl ("|" conDecl)*
-         | x pat* '=' expr
+         | x apat* "=" t
 
 # Constructors
 conDecl  ::= C typeAtom*
-typeAtom ::= ident | "(" typeAtom* ")"
+typeAtom ::= x | C | "(" typeAtom* ")"
 
-# Patterns & Terms
-pat ::= ident | "(" C pat* ")"
-t   ::= s+ | t binOp t
+# Patterns
+pat  ::= pat' (":" pat)?
+pat' ::= C apat* | apat
+apat ::= x
+      | C
+      | numLiteral
+      | patListLiteral
+      | "(" pat ")"
 
-# Simple expression
-s ::= ident | numLiteral | listLiteral | "(" t ")"
+# Terms
+t    ::= app | t binOp t
 
-numLiteral  ::= digit+                # desugars to Zero / Succ
-listLiteral ::= "[" (t ("," t)*)? "]" # desugars to Nil / Cons
+# Function application
+app  ::= s s*
+
+# Simple expression (no tuples or a unit)
+s    ::= x
+       | C
+       | numLiteral
+       | termListLiteral
+       | "(" t ")"
+
+# desugars to Zero / Succ
+numLiteral  ::= digit+
+
+# desugars to Nil / Cons
+# pat doesn't allow terms in a list, so we define them separately
+termListLiteral ::= "[" (t ("," t)*)? "]"
+patListLiteral  ::= "[" (pat ("," pat)*)? "]"
 ```

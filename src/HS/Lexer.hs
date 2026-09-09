@@ -1,4 +1,4 @@
-module ApplicativeTRS.Lexer (Token (..), PosToken (..), showToken, unvirtual, lexApplicativeTRS, tokenWidth) where
+module HS.Lexer (Token (..), PosToken (..), showToken, unvirtual, lexHS, tokenWidth) where
 
 import Data.List (sortBy)
 import Error
@@ -11,12 +11,10 @@ import qualified Text.Megaparsec.Char.Lexer as L
 
 data Token
   = TIdent String -- @x@
-  | TKeyword String -- @RULES@, @DATA@
+  | TKeyword String -- @data@
   | TOp String
   | TNumLiteral Int -- Number literals
   | TSpecial Char -- @( ) [ ] , ;@
-  | TVOpenBlock
-  | TVCloseBlock
   | TVEndOfStmt
   deriving (Eq, Ord, Show)
 
@@ -26,8 +24,6 @@ showToken (TKeyword s) = s
 showToken (TOp s) = s
 showToken (TNumLiteral n) = show n
 showToken (TSpecial c) = [c]
-showToken TVOpenBlock = "("
-showToken TVCloseBlock = ")"
 showToken TVEndOfStmt = "\n"
 
 data PosToken = PosToken
@@ -40,26 +36,23 @@ isVirtual :: Token -> Bool
 isVirtual t = t `elem` [TVEndOfStmt]
 
 unvirtual :: Token -> Token
-unvirtual TVOpenBlock = TSpecial '('
-unvirtual TVCloseBlock = TSpecial ')'
 unvirtual TVEndOfStmt = TSpecial ';'
 unvirtual t = t
 
 sc :: Parser ()
-sc = L.space space1 (L.skipLineComment "#") empty
+sc = L.space space1 (L.skipLineComment "--") (L.skipBlockComment "{-" "-}")
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc
 
 keywords :: [String]
-keywords = ["RULES", "DATA"]
+keywords = ["data"]
 
 ops :: [String]
 ops =
   sortBy
     (flip compare)
-    [ "->", -- Rule assoc
-      "=", -- Data declaration
+    [ "=", -- Any declaration
       "|", -- Data alternative
 
       --- General operators
@@ -96,8 +89,8 @@ ops =
 specialChars :: String
 specialChars = "()[],;"
 
-lexApplicativeTRS :: FilePath -> String -> Either ParseError [PosToken]
-lexApplicativeTRS = parse (sc *> many pTokenWithPos <* eof)
+lexHS :: FilePath -> String -> Either ParseError [PosToken]
+lexHS = parse (sc *> many pTokenWithPos <* eof)
 
 pTokenWithPos :: Parser PosToken
 pTokenWithPos = do

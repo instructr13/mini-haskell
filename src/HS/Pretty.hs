@@ -1,12 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ApplicativeTRS.Pretty (prettyApplicativeTerm) where
+module HS.Pretty (prettyTerm) where
 
+import HS.Operator
 import Prettyprinter
 import TRS (appSpine)
 import Term
-
-data Assoc = AssocLeft | AssocNone | AssocRight deriving (Eq, Show)
 
 data Side = SideLeft | SideNone | SideRight deriving (Eq, Show)
 
@@ -15,33 +14,6 @@ data Ctx = Ctx
     ctxSide :: Side,
     ctxOp :: String
   }
-
-data OpSpec = OpSpec
-  { opFunctor :: String,
-    opSymbol :: String,
-    opPrec :: Int,
-    opAssoc :: Assoc
-  }
-
-operators :: [OpSpec]
-operators =
-  [ OpSpec "mul" "*" 7 AssocLeft,
-    OpSpec "add" "+" 6 AssocLeft,
-    OpSpec "sub" "-" 6 AssocLeft,
-    OpSpec "Cons" ":" 5 AssocRight,
-    OpSpec "append" "++" 5 AssocRight,
-    OpSpec "eq" "==" 4 AssocNone,
-    OpSpec "neq" "/=" 4 AssocNone,
-    OpSpec "leq" "<=" 4 AssocNone,
-    OpSpec "lt" "<" 4 AssocNone,
-    OpSpec "geq" ">=" 4 AssocNone,
-    OpSpec "gt" ">" 4 AssocNone,
-    OpSpec "and" "&&" 3 AssocRight,
-    OpSpec "or" "||" 2 AssocRight
-  ]
-
-operatorsByFunctor :: [(String, OpSpec)]
-operatorsByFunctor = [(opFunctor o, o) | o <- operators]
 
 sugarPeano :: Term -> Maybe Int
 sugarPeano (F "Succ" [f]) = fmap (+ 1) (sugarPeano f)
@@ -81,7 +53,7 @@ sugarList :: Term -> Maybe (Doc ann)
 sugarList t = do
   ts <- listSpine t
 
-  pure (brackets (hsep (punctuate "," (map prettyApplicativeTerm ts))))
+  pure (brackets (hsep (punctuate "," (map prettyTerm ts))))
 
 prettyPrec :: Bool -> Ctx -> Term -> Doc ann
 prettyPrec p c t
@@ -105,7 +77,7 @@ prettyPrec p c t
     flatten (V x) = (x, [])
     flatten (F f ts) = (f, ts)
 
-prettyApplicativeTerm :: Term -> Doc ann
-prettyApplicativeTerm = prettyPrec False c0
+prettyTerm :: Term -> Doc ann
+prettyTerm = prettyPrec False c0
   where
     c0 = Ctx 0 SideNone ""

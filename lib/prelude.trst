@@ -1,3 +1,106 @@
 (DATA Bool   = True | False)
 (DATA Nat    = Zero | Succ Nat)
 (DATA List a = Nil | Cons a (List a))
+(DATA Fail = Fail)
+(DATA Unit = Unit)
+(DATA Tuple2 a b = Tuple2 a b)
+(RULES
+  ## Bool
+  not True  -> False ;
+  not False -> True ;
+
+  True && y -> y ;
+  False && y -> False ;
+
+  True || y -> True ;
+  False || y -> y ;
+
+  ## Nat
+
+  0      + y -> y ;
+  Succ x + y -> Succ (x + y) ;
+
+  # truncated subtraction
+  0      - y      -> 0 ;
+  Succ x - 0      -> Succ x ;
+  Succ x - Succ y -> x - y ;
+
+  0      * y -> 0 ;
+  Succ x * y -> y + (x * y) ;
+
+  0      == 0      -> True ;
+  0      == Succ y -> False ;
+  Succ x == 0      -> False ;
+  Succ x == Succ y -> x == y ;
+
+  0      <= y      -> True ;
+  Succ x <= 0      -> False ;
+  Succ x <= Succ y -> x <= y ;
+
+  x /= y -> not (x == y) ;
+
+  x < y -> Succ x <= y ;
+
+  x > y -> y < x ;
+
+  x >= y -> y <= x ;
+
+  max 0        y        -> y ;
+  max (Succ x) 0        -> Succ x ;
+  max (Succ x) (Succ y) -> Succ (max x y) ;
+
+  min 0        y      -> y ;
+  min (Succ x) 0      -> 0 ;
+  min (Succ x) (Succ y) -> Succ (min x y) ;
+
+  ## List
+
+  # Append
+  []         ++ ys -> ys ;
+  (x : xs)   ++ ys -> x : (xs ++ ys) ;
+
+  null []       -> True ;
+  null (x : xs) -> False ;
+
+  length []       -> 0 ;
+  length (x : xs) -> Succ (length xs) ;
+
+  head []       -> Fail ;
+  head (x : xs) -> x ;
+
+  tail []       -> Fail ;
+  tail (x : xs) -> xs ;
+
+  reverse []       -> [] ;
+  reverse (x : xs) -> reverse xs ++ [x] ;
+
+  elem x []       -> False ;
+  elem x (y : ys) -> (x == y) || elem x ys ;
+
+  sum []       -> 0 ;
+  sum (x : xs) -> x + sum xs ;
+
+  product []       -> 1 ;
+  product (x : xs) -> x * product xs ;
+
+  # Quick sort
+  sort []       -> [] ;
+  sort (x : xs) -> joinParts x (partition x xs) ;
+
+  joinParts x (Tuple2 ys zs) -> sort ys ++ (x : sort zs) ;
+
+  # partition p xs = (the elements of xs below p, the elements from p up)
+  partition p []       -> Tuple2 [] [] ;
+  partition p (x : xs) -> partitionWith (p <= x) x (partition p xs) ;
+
+  partitionWith True  x (Tuple2 ys zs) -> Tuple2 ys       (x : zs) ;
+  partitionWith False x (Tuple2 ys zs) -> Tuple2 (x : ys) zs ;
+
+  ## Tuple2
+
+  fst (Tuple2 a b) -> a ;
+
+  snd (Tuple2 a b) -> b ;
+
+  swap (Tuple2 a b) -> Tuple2 b a ;
+)

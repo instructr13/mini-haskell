@@ -60,11 +60,11 @@ parseTokens file src toks = mapLeft syntaxError sectionSet
 pSimpleExpression :: Parser SExpr
 pSimpleExpression = SEIdent <$> ident <|> pDesugarExpression pTerm <|> parens pTerm
 
-pApplication :: Parser SExpr
-pApplication = foldl SEApp <$> pSimpleExpression <*> many pSimpleExpression
+pApp :: Parser SExpr
+pApp = foldl SEApp <$> pSimpleExpression <*> many pSimpleExpression
 
 pTerm :: Parser SExpr
-pTerm = makeExprParser pApplication operatorTable
+pTerm = makeExprParser pApp operatorTable
 
 pRule :: Parser AppRule
 pRule = do

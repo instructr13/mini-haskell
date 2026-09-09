@@ -1,7 +1,4 @@
 (RULES
-  0      + y -> y ;
-  Succ x + y -> Succ (x + y) ;
-
   map f []       -> [] ;
   map f (x : xs) -> f x : map f xs ;
 

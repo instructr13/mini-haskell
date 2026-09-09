@@ -1,6 +1,3 @@
 (RULES
-  0      + y -> y ;
-  Succ x + y -> Succ (x + y) ;
-
   main -> 2 + 1 ;
 )

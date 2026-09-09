@@ -51,7 +51,7 @@ fromConViolation v = case v of
     Invalid
       ( "undeclared constructor "
           ++ c
-          ++ " (missing a DATA declaration, or did you mean a lowercase variable?) in "
+          ++ " (missing a data declaration, or did you mean a lowercase variable?) in "
           ++ showRule rule
       )
   ConstructorArityExceeded rule c declared actual ->

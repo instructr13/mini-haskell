@@ -4,6 +4,7 @@ module Source (module Source) where
 
 import ApplicativeTRS.Loader (loadApplicativeTRS)
 import Data.List (isSuffixOf)
+import HS.Loader (loadHS)
 import Prettyprinter
 import TRS
 import TRS.Error (TRSError (..))
@@ -14,8 +15,6 @@ data SourceKind = TRSSource | AppTRSSource | HSSource deriving (Eq, Show)
 
 data SourceError
   = SrcTRSError TRSError
-  | SrcAppTRSError TRSError
-  | SrcHSError
   | UnknownSrcError
 
 sourceKind :: FilePath -> Either SourceError SourceKind
@@ -34,8 +33,6 @@ multilineErrorDoc title msg =
 
 sourceErrorDoc :: SourceError -> Doc ann
 sourceErrorDoc (SrcTRSError e) = trsErrorDoc e
-sourceErrorDoc (SrcAppTRSError e) = trsErrorDoc e
-sourceErrorDoc SrcHSError = undefined
 sourceErrorDoc UnknownSrcError = "unknown source file (only .trs and .hs are supported)"
 
 trsErrorDoc :: TRSError -> Doc ann
@@ -48,4 +45,4 @@ compileSrc file src = case sourceKind file of
   Left e -> Left e
   Right TRSSource -> mapLeft SrcTRSError (loadTRS file src)
   Right AppTRSSource -> mapLeft SrcTRSError (loadApplicativeTRS file src)
-  Right HSSource -> undefined
+  Right HSSource -> mapLeft SrcTRSError (loadHS file src)

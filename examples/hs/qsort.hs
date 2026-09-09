@@ -1,0 +1,10 @@
+qsort [] = []
+qsort (x : xs) = split x xs [] []
+
+split w [] ys zs = qsort ys ++ (w : qsort zs)
+split w (x : xs) ys zs = if_split (w <= x) w x xs ys zs
+
+if_split True w x xs ys zs = split w xs ys (x : zs)
+if_split False w x xs ys zs = split w xs (x : ys) zs
+
+main = qsort [2, 0, 4, 1, 3]

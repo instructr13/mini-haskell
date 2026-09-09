@@ -1,11 +1,4 @@
 (RULES
-  []       ++ ys -> ys ;
-  (x : xs) ++ ys -> x : (xs ++ ys) ;
-
-  0      <= y      -> True ;
-  Succ x <= 0      -> False ;
-  Succ x <= Succ y -> x <= y ;
-
   qsort []                    -> [] ;
   qsort (x : xs)              -> split x xs [] [] ;
   split w []            ys zs -> qsort ys ++ (w : qsort zs) ;
