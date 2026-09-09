@@ -14,9 +14,7 @@ import Util
 
 -- Built from HS.Operator, the single source of truth for the operator set.
 operatorTable :: [[Operator Parser SExpr]]
-operatorTable =
-  [InfixL (SEApp <$ op ".")]
-    : [[entry o | o <- g] | g <- operatorsByPrec]
+operatorTable = [[entry o | o <- g] | g <- operatorsByPrec]
   where
     entry :: OpSpec -> Operator Parser SExpr
     entry o = infixOf (opAssoc o) (mkBinOp (opFunctor o) <$ op (opSymbol o))

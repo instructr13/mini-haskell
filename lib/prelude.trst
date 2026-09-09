@@ -71,8 +71,9 @@
   tail []       -> Fail ;
   tail (x : xs) -> xs ;
 
-  reverse []       -> [] ;
-  reverse (x : xs) -> reverse xs ++ [x] ;
+  reverse []           -> [] ;
+  reverse (x : xs)     -> reverse xs ++ [x] ;
+  reverse (reverse xs) -> xs ;
 
   elem x []       -> False ;
   elem x (y : ys) -> (x == y) || elem x ys ;
@@ -103,4 +104,21 @@
   snd (Tuple2 a b) -> b ;
 
   swap (Tuple2 a b) -> Tuple2 b a ;
+
+  ## Higher-order functions
+
+  compose f g x -> f (g x) ;
+
+  map f []         -> [] ;
+  map f (x : xs)   -> f x : map f xs ;
+  map f (map g xs) -> map (f . g) xs ;
+
+  foldr f z []       -> z ;
+  foldr f z (x : xs) -> f x (foldr f z xs) ;
+
+  filter p []       -> [] ;
+  filter p (x : xs) -> filterWith (p x) x (filter p xs) ;
+
+  filterWith True  x xs -> x : xs ;
+  filterWith False x xs -> xs ;
 )

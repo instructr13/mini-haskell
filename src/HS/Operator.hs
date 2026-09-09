@@ -14,15 +14,10 @@ data OpSpec = OpSpec
     opAssoc :: Assoc
   }
 
--- The single source of truth for the infix operators: HS.Parser builds its
--- expression table from it, HS.Pretty sugars the functors back into symbols.
--- Every symbol here must also be listed in ops of HS.Lexer.
---
--- "." is absent on purpose: it desugars into a plain application rather than
--- into an application of some functor, so it has no pretty-printing inverse.
 operators :: [OpSpec]
 operators =
-  [ OpSpec "mul" "*" 7 AssocLeft,
+  [ OpSpec "compose" "." 9 AssocRight,
+    OpSpec "mul" "*" 7 AssocLeft,
     OpSpec "add" "+" 6 AssocLeft,
     OpSpec "sub" "-" 6 AssocLeft,
     OpSpec "Cons" ":" 5 AssocRight, -- : is only the constructor "Cons"
