@@ -19,12 +19,14 @@
   not (not x) -> x ;
 
   True  && y     -> y ;
-  False && y     -> False ;
-  x     && False -> False ;
+  x     && True  -> x ;
+  False && _     -> False ;
+  _     && False -> False ;
 
-  True  || y     -> True ;
+  True  || _     -> True ;
   False || y     -> y ;
-  x     || True  -> True ;
+  _     || True  -> True ;
+  x     || False -> x ;
 
   ## Nat
 
@@ -37,8 +39,8 @@
   Succ x - 0      -> Succ x ;
   Succ x - Succ y -> x - y ;
 
-  0      * y -> 0 ;
-  y      * 0 -> 0 ;
+  0      * _ -> 0 ;
+  _      * 0 -> 0 ;
   Succ x * y -> y + (x * y) ;
 
   succ x        -> Succ x ;
@@ -51,12 +53,12 @@
   odd (Succ x)  -> even x ;
 
   0      == 0      -> True ;
-  0      == Succ y -> False ;
-  Succ x == 0      -> False ;
+  0      == Succ _ -> False ;
+  Succ _ == 0      -> False ;
   Succ x == Succ y -> x == y ;
 
-  0      <= y      -> True ;
-  Succ x <= 0      -> False ;
+  0      <= _      -> True ;
+  Succ _ <= 0      -> False ;
   Succ x <= Succ y -> x <= y ;
 
   x /= y -> not (x == y) ;
@@ -72,7 +74,7 @@
   max (Succ x) (Succ y) -> Succ (max x y) ;
 
   min 0        y      -> y ;
-  min (Succ x) 0      -> 0 ;
+  min (Succ _) 0      -> 0 ;
   min (Succ x) (Succ y) -> Succ (min x y) ;
 
   ## List
@@ -81,28 +83,28 @@
   []         ++ ys -> ys ;
   xs         ++ [] -> xs ;
   (x : xs)   ++ ys -> x : (xs ++ ys) ;
-  (xs ++ ys) ++ zs -> xs ++ (ys ++ zs)  ;
+  (xs ++ ys) ++ zs -> xs ++ (ys ++ zs) ;
 
-  null []       -> True ;
-  null (x : xs) -> False ;
+  null []      -> True ;
+  null (_ : _) -> False ;
 
   length []              -> 0 ;
-  length (x : xs)        -> Succ (length xs) ;
-  length (map x xs)      -> length xs ;
-  length (replicate n x) -> n ;
+  length (_ : xs)        -> Succ (length xs) ;
+  length (map _ xs)      -> length xs ;
+  length (replicate n _) -> n ;
 
   head []       -> Fail ;
-  head (x : xs) -> x ;
+  head (x : _ ) -> x ;
 
   tail []       -> Fail ;
-  tail (x : xs) -> xs ;
+  tail (_ : xs) -> xs ;
 
   reverse []           -> [] ;
   reverse (x : xs)     -> reverse xs ++ [x] ;
   reverse (reverse xs) -> xs ;
   reverse (xs ++ ys)   -> reverse ys ++ reverse xs ;
 
-  elem x []       -> False ;
+  elem _ []       -> False ;
   elem x (y : ys) -> (x == y) || elem x ys ;
 
   sum []              -> 0 ;
@@ -113,55 +115,55 @@
   product (x : xs) -> x * product xs ;
 
   take 0        xs       -> [] ;
-  take n        []       -> [] ;
+  take _        []       -> [] ;
   take (Succ n) (x : xs) -> x : take n xs ;
 
   drop 0        xs       -> xs ;
-  drop n        []       -> [] ;
-  drop (Succ n) (x : xs) -> drop n xs ;
+  drop _        []       -> [] ;
+  drop (Succ n) (_ : xs) -> drop n xs ;
 
   splitAt n xs -> (take n xs, drop n xs) ;
 
-  takeWhile p []       -> [] ;
+  takeWhile _ []       -> [] ;
   takeWhile p (x : xs) -> takeWhileWith (p x) p x xs ;
   takeWhileWith True  p x xs -> x : takeWhile p xs ;
-  takeWhileWith False p x xs -> [] ;
+  takeWhileWith False _ _ _  -> [] ;
 
-  dropWhile p []       -> [] ;
+  dropWhile _ []       -> [] ;
   dropWhile p (x : xs) -> dropWhileWith (p x) p x xs ;
-  dropWhileWith True  p x xs -> dropWhile p xs ;
-  dropWhileWith False p x xs -> x : xs ;
+  dropWhileWith True  p _ xs -> dropWhile p xs ;
+  dropWhileWith False _ x xs -> x : xs ;
 
-  replicate 0        x -> [] ;
+  replicate 0        _ -> [] ;
   replicate (Succ n) x -> x : replicate n x ;
 
   last []           -> Fail ;
   last (x : [])     -> x ;
-  last (x : y : ys) -> last (y : ys) ;
+  last (_ : y : ys) -> last (y : ys) ;
 
   init []           -> Fail ;
-  init (x : [])     -> [] ;
+  init (_ : [])     -> [] ;
   init (x : y : ys) -> x : init (y : ys) ;
 
   concat []         -> [] ;
   concat (xs : xss) -> xs ++ concat xss ;
 
-  concatMap f []       -> [] ;
+  concatMap _ []       -> [] ;
   concatMap f (x : xs) -> f x ++ concatMap f xs ;
 
-  zipWith f []       ys       -> [] ;
-  zipWith f xs       []       -> [] ;
+  zipWith _ []       _        -> [] ;
+  zipWith _ _        []       -> [] ;
   zipWith f (x : xs) (y : ys) -> f x y : zipWith f xs ys ;
 
   zip xs ys -> zipWith (xs, ys) ;
 
-  foldl f z []       -> z ;
+  foldl _ z []       -> z ;
   foldl f z (x : xs) -> foldl f (f z x) xs ;
 
-  all p []       -> True ;
+  all _ []       -> True ;
   all p (x : xs) -> p x && all p xs ;
 
-  any p []       -> False ;
+  any _ []       -> False ;
   any p (x : xs) -> p x || any p xs ;
 
   notElem x xs -> not (elem x xs) ;
@@ -172,19 +174,19 @@
   minimum []       -> Fail ;
   minimum (x : xs) -> foldr min x xs ;
 
-  lookup k []                -> Nothing ;
+  lookup _ []                -> Nothing ;
   lookup k ((a, b) : ps) -> lookupWith (k == a) b k ps ;
-  lookupWith True  b k ps -> Just b ;
-  lookupWith False b k ps -> lookup k ps ;
+  lookupWith True  b _ _  -> Just b ;
+  lookupWith False _ k ps -> lookup k ps ;
 
   insert x []       -> [x] ;
   insert x (y : ys) -> insertWith (x <= y) x y ys ;
   insertWith True  x y ys -> x : y : ys ;
   insertWith False x y ys -> y : insert x ys ;
 
-  delete x []       -> [] ;
+  delete _ []       -> [] ;
   delete x (y : ys) -> deleteWith (x == y) x y ys ;
-  deleteWith True  x y ys -> ys ;
+  deleteWith True  _ _ ys -> ys ;
   deleteWith False x y ys -> y : delete x ys ;
 
   nub []       -> [] ;
@@ -197,7 +199,7 @@
   joinParts x (ys, zs) -> sort ys ++ (x : sort zs) ;
 
   # partition p xs = (the elements of xs below p, the elements from p up)
-  partition p []       -> ([], []) ;
+  partition _ []       -> ([], []) ;
   partition p (x : xs) -> partitionWith (p <= x) x (partition p xs) ;
 
   partitionWith True  x (ys, zs) -> (ys, x : zs) ;
@@ -205,22 +207,22 @@
 
   ## Tuple2
 
-  fst (a, b) -> a ;
+  fst (a, _) -> a ;
 
-  snd (a, b) -> b ;
+  snd (_, b) -> b ;
 
   swap (a, b) -> (b, a) ;
 
   ## Maybe
 
-  maybe d f Nothing  -> d ;
-  maybe d f (Just x) -> f x ;
+  maybe d _ Nothing  -> d ;
+  maybe _ f (Just x) -> f x ;
 
   fromMaybe d Nothing  -> d ;
   fromMaybe d (Just x) -> x ;
 
   isJust Nothing  -> False ;
-  isJust (Just x) -> True ;
+  isJust (Just _) -> True ;
 
   isNothing m -> not (isJust m) ;
 
@@ -232,17 +234,17 @@
 
   (f . g) . h -> f . (g . h) ;
 
-  map f  []         -> [] ;
+  map _  []         -> [] ;
   map f  (x : xs)   -> f x : map f xs ;
   map f  (map g xs) -> map (f . g) xs ;
   map id xs         -> xs ;
 
-  foldr f z []       -> z ;
+  foldr _ z []       -> z ;
   foldr f z (x : xs) -> f x (foldr f z xs) ;
 
-  filter p []       -> [] ;
+  filter _ []       -> [] ;
   filter p (x : xs) -> filterWith (p x) x (filter p xs) ;
 
   filterWith True  x xs -> x : xs ;
-  filterWith False x xs -> xs ;
+  filterWith False _ xs -> xs ;
 )

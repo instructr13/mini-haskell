@@ -15,6 +15,7 @@ data Token
   | TOp String
   | TNumLiteral Int -- Number literals
   | TSpecial Char -- @( ) [ ] , ;@
+  | TWild -- @_@
   | TVEndOfStmt
   deriving (Eq, Ord, Show)
 
@@ -24,6 +25,7 @@ showToken (TKeyword s) = s
 showToken (TOp s) = s
 showToken (TNumLiteral n) = show n
 showToken (TSpecial c) = [c]
+showToken TWild = "_"
 showToken TVEndOfStmt = "\n"
 
 data PosToken = PosToken
@@ -105,6 +107,7 @@ pToken :: Parser Token
 pToken =
   choice
     [ pKeywordOrIdent,
+      pWild,
       pOp,
       pLiteral,
       pSpecial
@@ -119,6 +122,14 @@ pKeywordOrIdent = try $ do
   let word = first : rest
 
   pure (if word `elem` keywords then TKeyword word else TIdent word)
+
+pWild :: Parser Token
+pWild = do
+  c <- TWild <$ char '_'
+
+  notFollowedBy (alphaNumChar <|> char '_')
+
+  pure c
 
 pOp :: Parser Token
 pOp = TOp <$> choice (map string ops)

@@ -52,7 +52,9 @@ pTerm = makeExprParser pApp operatorTable
 
 pAtomicPattern :: Parser Pat
 pAtomicPattern =
-  PVar
+  PWild
+    <$ tok TWild
+      <|> PVar
     <$> varIdent
       <|> PCon
     <$> conIdent

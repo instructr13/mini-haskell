@@ -23,6 +23,7 @@ checkInconsistentArity m =
 conPats :: Pat -> [(String, Int)]
 conPats (PVar _) = []
 conPats (PCon c ps) = (c, length ps) : concat [conPats p | p <- ps]
+conPats PWild = []
 
 -- bad: head (Cons x) = x     (Cons is declared with arity 2)
 checkUnsaturatedConstructor :: Signature -> Module -> [DeclViolation]

@@ -45,7 +45,7 @@ t ::= app | t binOp t
 app = s s*
 
 # Simple expression
-s ::= ident | numLiteral | listLiteral | "(" t ")"
+s ::= "_" | ident | numLiteral | listLiteral | "(" t ")"
 
 numLiteral  ::= digit+                # desugars to Zero / Succ
 listLiteral ::= "[" (t ("," t)*)? "]" # desugars to Nil / Cons
@@ -73,7 +73,8 @@ typeAtom ::= x | C | "(" typeAtom* ")"
 # Patterns
 pat  ::= pat' (":" pat)?
 pat' ::= C apat* | apat
-apat ::= x
+apat ::= "_"
+      | x
       | C
       | numLiteral
       | patListLiteral

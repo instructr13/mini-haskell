@@ -55,7 +55,13 @@ parseTokens file src toks = mapLeft syntaxError sectionSet
     sectionSet = parse (pSectionSet <* eof) file (tokenStream src toks)
 
 pSimpleExpression :: Parser SExpr
-pSimpleExpression = SEIdent <$> ident <|> pDesugarExpression pTerm <|> parens pTerm
+pSimpleExpression =
+  SEWild
+    <$ tok TWild
+      <|> SEIdent
+    <$> ident
+      <|> pDesugarExpression pTerm
+      <|> parens pTerm
 
 pApp :: Parser SExpr
 pApp = foldl SEApp <$> pSimpleExpression <*> many pSimpleExpression

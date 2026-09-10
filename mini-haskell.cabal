@@ -37,6 +37,7 @@ library
       ApplicativeTRS.Signature
       ApplicativeTRS.Syntax
       ApplicativeTRS.TokenStream
+      ApplicativeTRS.Wild
       Error
       HS.Check
       HS.Desugar
@@ -53,6 +54,7 @@ library
       HS.Signature
       HS.Syntax
       HS.TokenStream
+      HS.Wild
       Lexer
       Source
       Term
@@ -68,6 +70,7 @@ library
       TRS.Syntax
       TRS.TokenStream
       Util
+      Wild
   other-modules:
       Paths_mini_haskell
   hs-source-dirs:

@@ -12,6 +12,7 @@ type Parser = Parsec Void TokenStream
 data SExpr
   = SEIdent String
   | SEApp SExpr SExpr
+  | SEWild
   deriving (Show)
 
 -- Split an application spine into its head symbol and its arguments.
@@ -22,6 +23,7 @@ spine = go []
   where
     go acc (SEApp f x) = go (x : acc) f
     go acc (SEIdent x) = (x, acc)
+    go acc SEWild = ("_", acc)
 
 -- root(t)
 spineHead :: SExpr -> String

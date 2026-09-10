@@ -12,6 +12,7 @@ type Parser = Parsec Void TokenStream
 data Pat
   = PVar String
   | PCon String [Pat]
+  | PWild
   deriving (Show, Eq)
 
 data SExpr

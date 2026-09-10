@@ -6,6 +6,7 @@ import ApplicativeTRS.Elab
 import ApplicativeTRS.Parser (parseApplicativeTRS)
 import ApplicativeTRS.Signature
 import ApplicativeTRS.Syntax
+import ApplicativeTRS.Wild
 import Control.Monad.Except (MonadError (throwError))
 import TRS
 import TRS.Check (checkTRS)
@@ -16,9 +17,9 @@ loadApplicativeTRS :: FilePath -> String -> Either TRSError TRS
 loadApplicativeTRS file src = do
   m <- parseApplicativeTRS file src
   prelude <- parseApplicativeTRS preludePath preludeSrc
+  program <- expandAppModule (prelude <> m)
 
-  let program = prelude <> m
-      sig = mkSignature program
+  let sig = mkSignature program
       trs = [elabRule sig rule | rule <- amRules program]
 
   case map fromConViolation (checkConstructors sig trs)

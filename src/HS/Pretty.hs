@@ -6,6 +6,7 @@ import HS.Operator
 import Prettyprinter
 import TRS (appSpine)
 import Term
+import Wild
 
 data Side = SideLeft | SideNone | SideRight deriving (Eq, Show)
 
@@ -80,7 +81,7 @@ prettyPrec p c t
     parensIf b = if b then parens else id
 
     flatten :: Term -> (String, [Term])
-    flatten (V x) = (x, [])
+    flatten (V x) = (if isWildVar x then "_" else x, [])
     flatten (F f ts) = (f, ts)
 
 prettyTerm :: Term -> Doc ann

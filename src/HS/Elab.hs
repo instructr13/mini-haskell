@@ -21,6 +21,7 @@ elab = elabWith . classify
 elabPat :: Pat -> Term
 elabPat (PVar x) = V x
 elabPat (PCon c ps) = F c [elabPat p | p <- ps]
+elabPat PWild = error "elabPat: uncovered wild"
 
 elabRuleDecl :: Signature -> RuleDecl -> Rule
 elabRuleDecl sig rd =
