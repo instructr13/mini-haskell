@@ -3,7 +3,7 @@ module TRS.Check (Violation (..), checkRule, checkTRS) where
 import Data.List (nub, (\\))
 import TRS
 import TRS.Match (unify)
-import TRS.Rewrite (nfBounded)
+import TRS.Rewrite (indexTRS, nfIndexed)
 import Term
 
 data Violation
@@ -74,10 +74,11 @@ checkCriticalPairs trs =
   ]
   where
     indexed = zip trs [0 :: Integer ..]
+    ixTRS = indexTRS trs
 
     verdict rule1 rule2 s t =
-      case (nfBounded overlapStepLimit trs s, nfBounded overlapStepLimit trs t) of
-        (Just s', Just t')
+      case (nfIndexed overlapStepLimit ixTRS s, nfIndexed overlapStepLimit ixTRS t) of
+        ((True, s'), (True, t'))
           | s' == t' -> []
           | otherwise -> [AmbiguousOverlap rule1 rule2 s' t']
         _ -> [UnresolvedOverlap rule1 rule2 s t]

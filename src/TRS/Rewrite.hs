@@ -1,16 +1,12 @@
-{-# LANGUAGE BangPatterns #-}
-
 module TRS.Rewrite (module TRS.Rewrite) where
 
-import Data.List (isPrefixOf, nubBy, sortOn)
+import Data.List (mapAccumL, sortOn)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Ord (Down (..))
 import TRS
 import TRS.Match
 import Term
-
-type Strategy = IndexedTRS -> Term -> Maybe Term
 
 newtype IndexedTRS = IndexedTRS (Map String [Rule])
 
@@ -23,51 +19,52 @@ rulesFor :: IndexedTRS -> Term -> [Rule]
 rulesFor (IndexedTRS m) (F f _) = Map.findWithDefault [] f m
 rulesFor _ (V _) = []
 
--- {t | s ->_R t} = {s[r sigma]_p | ∃ p ∈ Pos(s). ∃ l -> r ∈ R. ∃ sigma which satisfies l sigma = s|_p}
-reducts :: IndexedTRS -> Term -> [(Position, Term)]
-reducts trs s =
-  [ (p, substitute r sigma `applyTo` rest)
-  | p <- positions s,
-    Just u <- [subTermAt s p],
-    (l, r) <- rulesFor trs u,
-    Just (sigma, rest) <- [matchRoot l u]
-  ]
-
--- rewrite R t = Just u, if t ->_R u for some term u
--- rewrite R t = Nothing, otherwise
-rewrite :: Strategy
-rewrite trs s =
-  case reducts trs s of
-    [] -> Nothing
-    rs -> Just (foldl' f s (nubBy encloses rs))
+-- t * sigma, the normal form of t sigma:
+--
+--   x * sigma                = x sigma
+--   f(t_1, ..., t_n) * sigma = r * tau   if t' = l tau for some l -> r in R
+--                            = t'        otherwise
+--     where t' = f(t_1 * sigma, ..., t_n * sigma)
+nfIndexedSteps :: Int -> IndexedTRS -> Term -> (Bool, Int, Term)
+nfIndexedSteps limit trs t0 = (steps <= limit, min steps limit, u)
   where
-    encloses :: (Eq a) => ([a], b) -> ([a], c) -> Bool
-    encloses (p, _) (q, _) = p `isPrefixOf` q
+    (steps, u) = go 0 [] [] t0
 
-    f :: Term -> ([Int], Term) -> Term
-    f acc (p, t) = case replace acc t p of
-      Just acc' -> acc'
-      Nothing -> acc
+    go :: Int -> Subst -> [Term] -> Term -> (Int, Term)
+    -- no root calls required for rest = []
+    go n sigma [] (V x) = (n, substitute (V x) sigma)
+    -- x * sigma = x sigma
+    go n sigma rest (V x) = root n (substitute (V x) sigma `applyTo` rest)
+    -- (a @ b) * sigma = (a * sigma) @ (b * sigma)
+    go n sigma rest (a :@ b) = root n'' (mkApp a' b' `applyTo` rest)
+      where
+        (n', a') = go n sigma [] a
+        (n'', b') = go n' sigma [] b
+    go n sigma rest (F f ts) = root n' (F f ts' `applyTo` rest)
+      where
+        goAccum :: Int -> Term -> (Int, Term)
+        goAccum k t = go k sigma [] t
 
--- nf R t = u if t ->_R ... ->_R u for some normal form u
-nfWith :: Strategy -> IndexedTRS -> Term -> Term
-nfWith f trs t0 = go t0
+        (n', ts') = mapAccumL goAccum n ts
+
+    root :: Int -> Term -> (Int, Term)
+    root n t =
+      case [(r, tau, rest) | (l, r) <- rulesFor trs t, Just (tau, rest) <- [matchRoot l t]] of
+        [] -> (n, t)
+        ((r, tau, rest) : _)
+          | n >= limit -> (limit + 1, t) -- Limit exceeded
+          | otherwise -> go (n + 1) tau rest r -- r * tau
+
+nfBoundedSteps :: Int -> TRS -> Term -> (Bool, Int, Term)
+nfBoundedSteps limit trs t = nfIndexedSteps limit (indexTRS trs) t
+
+nfIndexed :: Int -> IndexedTRS -> Term -> (Bool, Term)
+nfIndexed limit trs t = (success, finalTerm)
   where
-    go !t = case f trs t of
-      Just t' -> go t'
-      _ -> t
+    (success, _, finalTerm) = nfIndexedSteps limit trs t
 
--- nf with the limit.
-nfBounded :: Int -> TRS -> Term -> Maybe Term
-nfBounded limit trs0 = go limit
-  where
-    trs = indexTRS trs0
-    go !k t
-      | k <= 0 = Nothing
-      | otherwise = case rewrite trs t of
-          Just t' -> go (k - 1) t'
-          Nothing -> Just t
+nfBounded :: Int -> TRS -> Term -> (Bool, Term)
+nfBounded limit trs t = nfIndexed limit (indexTRS trs) t
 
--- The index is built once here, not once per rewrite step.
 nf :: TRS -> Term -> Term
-nf = nfWith rewrite . indexTRS
+nf trs t = snd (nfBounded maxBound trs t)

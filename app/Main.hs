@@ -39,12 +39,12 @@ runMain args = do
             die
               (errorDoc ("no rule for main in " <+> pretty f))
           Just mainF -> case (nfBounded 10000 trs mainF) of
-            Just t -> do
+            (True, t) -> do
               hPutDocLn stdout mempty
               hPutDocLn stdout ("-->" <+> prettyTerm t)
-            Nothing ->
+            (False, t) ->
               die
-                (errorDoc "maximum calculation limit exceeded")
+                (errorDoc "maximum calculation limit exceeded (last term):" <+> prettyTerm t)
 
 die :: Doc ann -> IO ()
 die d = hPutDocLn stderr d >> exitFailure

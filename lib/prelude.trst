@@ -16,7 +16,6 @@
 
   not True  -> False ;
   not False -> True ;
-  not (not x) -> x ;
 
   True  && y     -> y ;
   x     && True  -> x ;
@@ -83,15 +82,12 @@
   []         ++ ys -> ys ;
   xs         ++ [] -> xs ;
   (x : xs)   ++ ys -> x : (xs ++ ys) ;
-  (xs ++ ys) ++ zs -> xs ++ (ys ++ zs) ;
 
   null []      -> True ;
   null (_ : _) -> False ;
 
-  length []              -> 0 ;
-  length (_ : xs)        -> Succ (length xs) ;
-  length (map _ xs)      -> length xs ;
-  length (replicate n _) -> n ;
+  length []       -> 0 ;
+  length (_ : xs) -> Succ (length xs) ;
 
   head []       -> Fail ;
   head (x : _ ) -> x ;
@@ -101,15 +97,12 @@
 
   reverse []           -> [] ;
   reverse (x : xs)     -> reverse xs ++ [x] ;
-  reverse (reverse xs) -> xs ;
-  reverse (xs ++ ys)   -> reverse ys ++ reverse xs ;
 
   elem _ []       -> False ;
   elem x (y : ys) -> (x == y) || elem x ys ;
 
-  sum []              -> 0 ;
-  sum (x : xs)        -> x + sum xs ;
-  sum (replicate n x) -> n * x ;
+  sum []       -> 0 ;
+  sum (x : xs) -> x + sum xs ;
 
   product []       -> 1 ;
   product (x : xs) -> x * product xs ;
@@ -232,12 +225,9 @@
   compose id f -> f ;
   compose f id -> f ;
 
-  (f . g) . h -> f . (g . h) ;
-
-  map _  []         -> [] ;
-  map f  (x : xs)   -> f x : map f xs ;
-  map f  (map g xs) -> map (f . g) xs ;
-  map id xs         -> xs ;
+  map _  []       -> [] ;
+  map f  (x : xs) -> f x : map f xs ;
+  map id xs       -> xs ;
 
   foldr _ z []       -> z ;
   foldr f z (x : xs) -> f x (foldr f z xs) ;
