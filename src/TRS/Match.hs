@@ -1,3 +1,5 @@
+{-# LANGUAGE MonadComprehensions #-}
+
 module TRS.Match (module TRS.Match) where
 
 import TRS
@@ -42,10 +44,11 @@ matchAll = go []
 -- matchRoot (F "add1" [V "x"]) (F "add1" []) = Nothing
 matchRoot :: Term -> Term -> Maybe (Subst, [Term])
 matchRoot (F f as) (F g bs)
-  | f == g,
-    (bs', rest) <- splitAt (length as) bs,
-    length bs' == length as =
-      fmap (\sigma -> (sigma, rest)) (matchAll (zip as bs'))
+  | f == g, Just (ps, rest) <- align as bs = [(sigma, rest) | sigma <- matchAll ps]
+  where
+    align [] rest = Just ([], rest)
+    align (a : as') (b : bs') = [((a, b) : ps, rest) | (ps, rest) <- align as' bs']
+    align (_ : _) [] = Nothing
 matchRoot _ _ = Nothing
 
 occurs :: Name -> Term -> Bool
