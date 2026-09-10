@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module TRS.Check (Violation (..), checkRule, checkTRS) where
 
 import Data.List (nub, (\\))
@@ -32,12 +34,12 @@ checkLhsIsApplication rule@(l, _) = [LhsIsApplication rule | containsApp l]
     containsApp (V _) = False
 
 checkUnboundRhsVar :: Rule -> [Violation]
-checkUnboundRhsVar rule@(l, r) = [UnboundRhsVar rule x | x <- variables r \\ variables l]
+checkUnboundRhsVar rule@(l, r) = [UnboundRhsVar rule (unpackName x) | x <- variables r \\ variables l]
 
 checkNonLeftLinear :: Rule -> [Violation]
-checkNonLeftLinear rule@(l, _) = [NonLeftLinear rule x | x <- nub (variablesWithDups l \\ variables l)]
+checkNonLeftLinear rule@(l, _) = [NonLeftLinear rule (unpackName x) | x <- nub (variablesWithDups l \\ variables l)]
   where
-    variablesWithDups :: Term -> [String]
+    variablesWithDups :: Term -> [Name]
     variablesWithDups (V x) = [x]
     variablesWithDups (F _ ts) = [x | t <- ts, x <- variablesWithDups t]
 

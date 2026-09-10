@@ -68,7 +68,7 @@ prettyPrec p c t
   | Just d <- sugarList t = d
   | Just d <- sugarTuple t = d
   -- Operator conversion
-  | F f [x, y] <- t, Just op <- lookup f operatorsByFunctor = prettyInfix p c op x y
+  | F f [x, y] <- t, Just op <- lookup (unpackName f) operatorsByFunctor = prettyInfix p c op x y
   -- An application whose head is not a symbol yet is still juxtaposition
   | Just (h, args) <- appSpine t =
       parensIf p (hang 2 (sep (prettyPrec True c h : map (prettyPrec True c) args)))
@@ -81,8 +81,8 @@ prettyPrec p c t
     parensIf b = if b then parens else id
 
     flatten :: Term -> (String, [Term])
-    flatten (V x) = (if isWildVar x then "_" else x, [])
-    flatten (F f ts) = (f, ts)
+    flatten (V x) = let s = unpackName x in (if isWildVar s then "_" else s, [])
+    flatten (F f ts) = (unpackName f, ts)
 
 prettyTerm :: Term -> Doc ann
 prettyTerm = prettyPrec False c0

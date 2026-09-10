@@ -9,7 +9,7 @@ import TRS.Parser (parseTRS)
 import TRS.Syntax (SectionSet (..))
 import Term
 
-variablesInTRS :: TRS -> [String]
+variablesInTRS :: TRS -> [Name]
 variablesInTRS trs =
   nub [x | (l, r) <- trs, t <- [l, r], x <- variables t]
 
@@ -19,10 +19,12 @@ substituteTRS trs sigma =
   | (l, r) <- trs
   ]
 
+-- Reify every symbol not declared in (VAR ...) as a nullary function symbol.
 convert :: [String] -> TRS -> TRS
 convert xs trs = substituteTRS trs sigma
   where
-    sigma = [(x, F x []) | x <- variablesInTRS trs, not (elem x xs)]
+    declared = map packName xs
+    sigma = [(x, F x []) | x <- variablesInTRS trs, not (elem x declared)]
 
 fromViolation :: Violation -> TRSError
 fromViolation v = case v of

@@ -9,8 +9,8 @@ elabWith :: (String -> SymKind) -> SExpr -> Term
 elabWith kindOf = go
   where
     go e
-      | Variable <- kindOf x = V x `applyTo` args
-      | otherwise = F x args
+      | Variable <- kindOf x = V (packName x) `applyTo` args
+      | otherwise = F (packName x) args
       where
         (x, es) = spine e
         args = map go es

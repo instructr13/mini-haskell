@@ -8,7 +8,7 @@ import TRS
 import TRS.Match
 import Term
 
-newtype IndexedTRS = IndexedTRS (Map String [Rule])
+newtype IndexedTRS = IndexedTRS (Map Name [Rule])
 
 indexTRS :: TRS -> IndexedTRS
 indexTRS trs = IndexedTRS (Map.map (sortOn (Down . ruleArity)) buckets)

@@ -14,10 +14,9 @@ data ConViolation
   | DuplicateConstructor String
   deriving (Show, Eq)
 
--- Every symbol occurring in a term.
 symbols :: Term -> [(String, Int)]
 symbols (V _) = []
-symbols (F f ts) = (f, length ts) : concat [symbols t | t <- ts]
+symbols (F f ts) = (unpackName f, length ts) : concat [symbols t | t <- ts]
 
 checkDuplicateConstructor :: Signature -> [ConViolation]
 checkDuplicateConstructor sig = [DuplicateConstructor c | c <- nub (names \\ nub names)]
@@ -26,7 +25,9 @@ checkDuplicateConstructor sig = [DuplicateConstructor c | c <- nub (names \\ nub
 
 -- bad: Cons x xs -> x   (a constructor is not a defined symbol)
 checkLhsRootIsConstructor :: Rule -> [ConViolation]
-checkLhsRootIsConstructor rule@(F c _, _) | isConName c = [LhsRootIsConstructor rule c]
+checkLhsRootIsConstructor rule@(F c' _, _) | isConName c = [LhsRootIsConstructor rule c]
+  where
+    c = unpackName c'
 checkLhsRootIsConstructor _ = []
 
 checkConstructorUse :: Signature -> Rule -> [ConViolation]

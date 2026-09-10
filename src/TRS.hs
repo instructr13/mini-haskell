@@ -1,4 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module TRS (module TRS) where
 
@@ -8,19 +10,19 @@ import Term
 
 type Position = [Int]
 
-type Subst = [(String, Term)]
+type Subst = [(Name, Term)]
 
 type Rule = (Term, Term)
 
 type TRS = [Rule]
 
 -- Special function for function application operator (juxtaposition notation).
-appName :: String
+appName :: Name
 appName = "@"
 
 -- Is f :@ x = @(f, x) ?
 pattern (:@) :: Term -> Term -> Term
-pattern f :@ x <- F "@" [f, x]
+pattern f :@ x <- F ((== appName) -> True) [f, x]
   where
     f :@ x = F appName [f, x]
 
@@ -55,12 +57,12 @@ ruleArity (V _, _) = 0
 
 -- Rename every variable apart by appending a suffix.
 -- renameTerm "'" (F "f" [V "x", V "y"]) = F "f" [V "x'", V "y'"]
-renameTerm :: String -> Term -> Term
-renameTerm suffix (V x) = V (x ++ suffix)
+renameTerm :: Name -> Term -> Term
+renameTerm suffix (V x) = V (x <> suffix)
 renameTerm suffix (F f ts) = F f [renameTerm suffix t | t <- ts]
 
 -- D(R) = {root(l) | l -> r ∈ R}
-definedSymbols :: TRS -> [String]
+definedSymbols :: TRS -> [Name]
 definedSymbols trs = nub [f | (F f _, _) <- trs]
 
 -- Pos(t), in pre-order.
@@ -98,7 +100,7 @@ replace (F f ts) u (i : ps)
   | otherwise = Nothing
 
 -- Var(t)
-variables :: Term -> [String]
+variables :: Term -> [Name]
 variables (V x) = [x]
 variables (F _ ts) = nub [x | t <- ts, x <- variables t]
 

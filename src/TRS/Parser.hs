@@ -76,7 +76,7 @@ pTerm vars = do
     fromMaybe []
       <$> (optional (parens $ sepBy1 (pTerm vars) (special ',')))
 
-  pure (if f `elem` vars && null ts then V f else F f ts)
+  pure (if f `elem` vars && null ts then V (packName f) else F (packName f) ts)
 
 pRule :: [String] -> Parser Rule
 pRule vars = do

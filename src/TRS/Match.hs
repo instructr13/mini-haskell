@@ -48,7 +48,7 @@ matchRoot (F f as) (F g bs)
       fmap (\sigma -> (sigma, rest)) (matchAll (zip as bs'))
 matchRoot _ _ = Nothing
 
-occurs :: String -> Term -> Bool
+occurs :: Name -> Term -> Bool
 occurs x (V y) = x == y
 occurs x (F _ ts) = any (occurs x) ts
 
