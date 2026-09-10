@@ -145,7 +145,7 @@ table gen sizes = do
 spec :: Spec
 spec = describe "qsort step count" $ do
   describe "pseudo-random input" $
-    table shuffled [0, 1, 2, 4, 8, 16, 24, 32, 48, 64]
+    table shuffled [0, 1, 2, 4, 8, 16, 24, 32, 48, 64, 128]
 
   describe "sorted input (worst case)" $
-    table ascending [4, 8, 16, 32, 64]
+    table ascending [4, 8, 16, 32, 64, 128]
