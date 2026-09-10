@@ -62,8 +62,12 @@ renameTerm suffix (V x) = V (x <> suffix)
 renameTerm suffix (F f ts) = F f [renameTerm suffix t | t <- ts]
 
 -- D(R) = {root(l) | l -> r ∈ R}
-definedSymbols :: TRS -> [Name]
-definedSymbols trs = nub [f | (F f _, _) <- trs]
+trsSymbols :: TRS -> [Name]
+trsSymbols trs = nub [f | (F f _, _) <- trs]
+
+termSymbols :: Term -> [Name] -> [Name]
+termSymbols (V _) acc = acc
+termSymbols (F f ts) acc = f : foldr termSymbols acc ts
 
 -- Pos(t), in pre-order.
 -- positions (F "add" []) = [[]]

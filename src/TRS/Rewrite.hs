@@ -4,20 +4,42 @@ import Data.List (mapAccumL, sortOn)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Ord (Down (..))
+import Data.Set (Set)
+import qualified Data.Set as Set
 import TRS
 import TRS.Match
 import Term
 
-newtype IndexedTRS = IndexedTRS (Map Name [Rule])
+type IndexedTRS = Map Name [Rule]
 
 indexTRS :: TRS -> IndexedTRS
-indexTRS trs = IndexedTRS (Map.map (sortOn (Down . ruleArity)) buckets)
+indexTRS trs = Map.map (sortOn (Down . ruleArity)) buckets
   where
     buckets = Map.fromListWith (flip (++)) [(f, [rule]) | rule@(F f _, _) <- trs]
 
 rulesFor :: IndexedTRS -> Term -> [Rule]
-rulesFor (IndexedTRS m) (F f _) = Map.findWithDefault [] f m
+rulesFor m (F f _) = Map.findWithDefault [] f m
 rulesFor _ (V _) = []
+
+-- Get accessible functions using the advanced fixed-point theorem for sets
+accessibleFunctions :: IndexedTRS -> Term -> Set Name
+accessibleFunctions trs t = go Set.empty (termSymbols t [])
+  where
+    succs g gs = foldr step gs (Map.findWithDefault [] g trs)
+    step (l, r) acc = termSymbols l (termSymbols r acc)
+
+    go :: Set Name -> [Name] -> Set Name
+    go seen [] = seen
+    go seen frontier = go seen' [g | g <- newSyms, g `Set.notMember` seen']
+      where
+        newSyms = foldr (\g acc -> succs g acc) [] frontier
+        seen' = foldr Set.insert seen frontier
+
+pruneIndexedTRS :: IndexedTRS -> Term -> IndexedTRS
+pruneIndexedTRS itrs t = Map.restrictKeys itrs (accessibleFunctions itrs t)
+
+prepareTRS :: TRS -> Term -> IndexedTRS
+prepareTRS = pruneIndexedTRS . indexTRS
 
 -- t * sigma, the normal form of t sigma:
 --
@@ -56,7 +78,7 @@ nfIndexedSteps limit trs t0 = (steps <= limit, min steps limit, u)
           | otherwise -> go (n + 1) tau rest r -- r * tau
 
 nfBoundedSteps :: Int -> TRS -> Term -> (Bool, Int, Term)
-nfBoundedSteps limit trs t = nfIndexedSteps limit (indexTRS trs) t
+nfBoundedSteps limit trs t = nfIndexedSteps limit (prepareTRS trs t) t
 
 nfIndexed :: Int -> IndexedTRS -> Term -> (Bool, Term)
 nfIndexed limit trs t = (success, finalTerm)
@@ -64,7 +86,7 @@ nfIndexed limit trs t = (success, finalTerm)
     (success, _, finalTerm) = nfIndexedSteps limit trs t
 
 nfBounded :: Int -> TRS -> Term -> (Bool, Term)
-nfBounded limit trs t = nfIndexed limit (indexTRS trs) t
+nfBounded limit trs t = nfIndexed limit (prepareTRS trs t) t
 
 nf :: TRS -> Term -> Term
 nf trs t = snd (nfBounded maxBound trs t)
